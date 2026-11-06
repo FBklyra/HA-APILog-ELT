@@ -1,0 +1,16 @@
+# Standalone example: one pod (`alelt all`), PVC-backed local spool, SQLite metadata on the same PVC.
+# Switch to HA later: alelt topology plan --to ha (deploy/HA.md), then helm upgrade -f values-ha.yaml.
+mode: standalone
+externalDatabase:
+  url: sqlite:////var/lib/alelt/data/alelt.db     # or existingSecret with a Postgres URL
+spool:
+  url: ""                                                   # -> file:///var/lib/alelt/spool on the PVC
+secrets:
+  existingSecret: alelt-hub
+standalone:
+  persistence:
+    size: 50Gi
+env:
+  ALELT_ENV: prod
+  ALELT_DEV_AUTH: "0"
+  ALELT_AGENT_AUTH: enrollment         # enrolment token -> per-agent credential; static tokens refused in prod

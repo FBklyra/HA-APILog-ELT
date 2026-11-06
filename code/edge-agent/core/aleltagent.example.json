@@ -1,0 +1,32 @@
+{
+  "_comment": "ALELT agent config. No secrets here (R9): mTLS key stays in LocalMachine\\My; dev token via env/DPAPI.",
+  "agent_id": "edge-01",
+  "connection_id": "erp",
+  "hub": {
+    "url": "https://alelt-hub.corp.example:8443",
+    "mode": "mtls",
+    "client_cert_thumbprint": "0123456789ABCDEF0123456789ABCDEF01234567",
+    "server_pins_sha256": ["0000000000000000000000000000000000000000000000000000000000000000"],
+    "heartbeat_s": 15,
+    "command_wait_s": 10,
+    "connect_timeout_ms": 10000,
+    "request_timeout_ms": 60000,
+    "backoff_max_s": 300
+  },
+  "spool": { "dir": "E:\\ALELT\\spool", "max_mb": 2048 },
+  "log": { "dir": "%ProgramData%\\ALELT\\Agent\\log", "level": "INFO", "max_mb": 20, "keep": 5 },
+  "limits": { "cpu_pct": 100, "mem_mb": 512, "batch_kb": 1024, "max_rate_kbps": 0, "poll_ms": 1000 },
+  "limits_max": { "_comment": "DBA-approved ceilings", "cpu_pct": 100, "mem_mb": 1024, "batch_kb": 8192, "max_rate_kbps": 0, "poll_ms": 600000 },
+  "require_job_limits": true,
+  "governor": { "enabled": true, "interval_s": 15, "host_cpu_pause_pct": 85, "host_cpu_resume_pct": 70, "sustain_samples": 3, "max_log_util_pct": 90 },
+  "source": {
+    "plugin": "aleltsrc_db2.dll",
+    "engine": "db2",
+    "database": "<DATABASE>",
+    "dll_dirs": ["%DB2PATH%\\BIN"],
+    "settings": { "database": "<DATABASE>", "catalog_schemas": ["<SCHEMA>"] }
+  },
+  "snapshot": { "allowed_tables": ["<SCHEMA>.<TABLE>"], "max_chunk_rows": 5000 },
+  "capture": { "autostart": false },
+  "ha": { "_comment": "standalone | active_passive (pair on Db2 HADR primary + standby: same connection_id, different agent_id)", "mode": "standalone", "lease_ttl_s": 30, "renew_s": 10 }
+}

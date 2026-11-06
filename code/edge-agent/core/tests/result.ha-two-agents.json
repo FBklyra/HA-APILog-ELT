@@ -1,0 +1,48 @@
+{
+ "name": "two C agents active/passive vs the real hub (mock source)",
+ "status": "PASS",
+ "checks": [
+  {
+   "name": "one holder, one standby",
+   "status": "PASS",
+   "detail": "holder ha2-a epoch 1"
+  },
+  {
+   "name": "standby refuses source commands",
+   "status": "PASS",
+   "detail": "('FAILED', '{\"message\": \"standby: this agent does not hold the capture lease (ha.mode=active_passive)\"}')"
+  },
+  {
+   "name": "active ships batches",
+   "status": "PASS",
+   "detail": "5 batches"
+  },
+  {
+   "name": "takeover with epoch + 1",
+   "status": "PASS",
+   "detail": "ha2-b epoch 1 -> 2"
+  },
+  {
+   "name": "old holder fenced after resume (self-fence or 423), no late batch",
+   "status": "PASS",
+   "detail": "late=[] frozen 22s"
+  },
+  {
+   "name": "second takeover epoch + 2",
+   "status": "PASS",
+   "detail": "ha2-a epoch 3"
+  },
+  {
+   "name": "hub batch chain gap- and duplicate-free across both takeovers",
+   "status": "PASS",
+   "detail": "21 batches (5 before the 1st takeover), breaks=[], dup to_lri=0"
+  },
+  {
+   "name": "moved lease: holder fenced by 423 (or refused renew), no batch accepted",
+   "status": "PASS",
+   "detail": "423 path"
+  }
+ ],
+ "work_dir": "%TEMP%\\alelt-ha2-nobe6p0z",
+ "finished_at": "2026-11-05T18:59:10Z"
+}

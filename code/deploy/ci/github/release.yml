@@ -1,0 +1,299 @@
+# Reference copy for forks / other hosts. The ACTIVE pipeline is .github/workflows/release.yml (DEP-29): keep them identical
+# (tests/static or CI may diff them).
+# ALELT release pipeline (GitHub Actions). Public release = linux/amd64 image + x64 Windows agent + x64 Linux daemon.
+# arm64 is a local/test build only (input `test_arm64`, never pushed, never attached to a release).
+# Registry-neutral: repository variables REGISTRY (e.g. ghcr.io) and IMAGE_NAMESPACE; secrets REGISTRY_USER /
+# REGISTRY_PASSWORD (ghcr.io: leave empty to use GITHUB_TOKEN).
+# Order (DEP-06): build -> load locally -> SBOM -> vulnerability gate (HIGH + CRITICAL, fixable) -> push -> sign.
+# Nothing reaches the registry before the scan passes.
+# Image / blob signing: keyless cosign (OIDC) by default; with secret COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) the key
+# is read from the environment (`--key env://`), never written to disk (DEP-30).
+# Windows binaries (DEP-09): Authenticode with secrets WINDOWS_SIGNING_PFX_BASE64 + WINDOWS_SIGNING_PFX_PASSWORD.
+# A tag release without them FAILS unless the repository variable ALLOW_UNSIGNED_AGENT is 'true' (then the release
+# notes say "unsigned"). SHA256SUMS is signed with cosign sign-blob (bundle SHA256SUMS.cosign.bundle).
+# Actions are pinned to commit SHAs (DEP-07; tag in the trailing comment, updated by Dependabot).
+# SPDX-License-Identifier: Apache-2.0
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version: { description: "SemVer without v (default: tag or 0.0.0-dev)", type: string, default: "" }
+      push_image: { description: "Push the amd64 image to the registry", type: boolean, default: false }
+      test_arm64: { description: "Also build arm64 locally (test only, not pushed)", type: boolean, default: false }
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ${{ vars.REGISTRY || 'ghcr.io' }}/${{ vars.IMAGE_NAMESPACE || github.repository_owner }}/alelt
+  SYFT_VERSION: v1.18.1
+  TRIVY_VERSION: v0.69.3
+  COSIGN_VERSION: v2.4.1
+
+jobs:
+  meta:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - id: v
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_PUSH: ${{ inputs.push_image }}
+        run: |
+          v="$IN_VERSION"
+          if [ -z "$v" ] && [ "${GITHUB_REF_TYPE}" = tag ]; then v="${GITHUB_REF_NAME#v}"; fi
+          [ -n "$v" ] || v="0.0.0-dev.${GITHUB_RUN_NUMBER}"
+          echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$' || { echo "bad version $v"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = tag ] || [ "$IN_PUSH" = true ]; then p=true; else p=false; fi
+          echo "publish=$p" >> "$GITHUB_OUTPUT"
+
+  test-python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - name: Install (hashed lock)
+        run: python -m pip install --require-hashes --no-deps -r deploy/image/requirements-ci.lock
+      - name: Hub tests (SQLite metadata)
+        env:
+          PYTHONPATH: hub:connectors/sources/db2:connectors/sources/postgres:connectors/destinations/postgres
+          ALELT_ENV: dev
+        run: python -m pytest -q hub/alelt_hub/tests
+      - name: Linux daemon tests
+        run: PYTHONPATH=hub:edge-agent/linux python -m pytest -q edge-agent/linux/tests
+
+  test-console:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: console } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: console/package-lock.json }
+      - run: npm ci
+      - run: node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json
+      - run: node node_modules/vitest/vitest.mjs run
+      - run: node node_modules/vite/bin/vite.js build
+
+  test-decoder:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: C decoder build + ctest
+        run: |
+          cmake -S connectors/sources/db2/decoder -B build/decoder -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/decoder -j"$(nproc)"
+          ctest --test-dir build/decoder --output-on-failure
+
+  agent-windows:
+    needs: meta
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build + ctest (MSVC x64)
+        shell: pwsh
+        run: ./edge-agent/core/build.ps1 -Preset x64-release
+      - name: Install WiX v4
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.6
+          wix extension add -g WixToolset.Util.wixext/4.0.6
+      - name: Authenticode signing setup
+        id: sign
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          ALLOW_UNSIGNED: ${{ vars.ALLOW_UNSIGNED_AGENT }}
+        run: |
+          if (-not $env:PFX_B64) {
+            if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:ALLOW_UNSIGNED -ne 'true') {
+              throw 'Tag release without WINDOWS_SIGNING_PFX_BASE64: refusing to publish unsigned agent binaries (set vars.ALLOW_UNSIGNED_AGENT=true to override)'
+            }
+            Write-Warning 'No signing certificate: agent binaries and MSI stay UNSIGNED (dev build).'
+            "signed=false" >> $env:GITHUB_OUTPUT; exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'sign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $st = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' | Sort-Object FullName -Descending | Select-Object -First 1
+          "signtool=$($st.FullName)" >> $env:GITHUB_OUTPUT
+          "pfx=$pfx" >> $env:GITHUB_OUTPUT
+          "signed=true" >> $env:GITHUB_OUTPUT
+      - name: Sign aleltagent.exe + plugin DLLs (before packaging)
+        if: steps.sign.outputs.signed == 'true'
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          $files = Get-ChildItem edge-agent/core/build/x64-release/bin -Include *.exe, *.dll -Recurse | ForEach-Object FullName
+          & '${{ steps.sign.outputs.signtool }}' sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f '${{ steps.sign.outputs.pfx }}' /p $env:PFX_PASSWORD $files
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & '${{ steps.sign.outputs.signtool }}' verify /pa $files
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Package zip + MSI
+        shell: pwsh
+        run: ./deploy/release/build-release.ps1 -Version ${{ needs.meta.outputs.version }} -SkipImages -AgentOnly -OutRoot out
+      - name: Sign MSI
+        if: steps.sign.outputs.signed == 'true'
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          $msi = Get-ChildItem out/${{ needs.meta.outputs.version }}/*windows-x64.msi | ForEach-Object FullName
+          & '${{ steps.sign.outputs.signtool }}' sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f '${{ steps.sign.outputs.pfx }}' /p $env:PFX_PASSWORD $msi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & '${{ steps.sign.outputs.signtool }}' verify /pa $msi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Remove signing key
+        if: always()
+        shell: pwsh
+        run: if ('${{ steps.sign.outputs.pfx }}') { Remove-Item -Force '${{ steps.sign.outputs.pfx }}' -ErrorAction SilentlyContinue }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-windows
+          path: |
+            out/${{ needs.meta.outputs.version }}/*windows-x64.zip
+            out/${{ needs.meta.outputs.version }}/*windows-x64.msi
+
+  image:
+    needs: [meta, test-python, test-console, test-decoder]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write          # keyless cosign
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        if: inputs.test_arm64
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Verify stage (decoder tests + golden corpus, amd64)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/image/Dockerfile
+          platforms: linux/amd64
+          target: verify
+          push: false
+      - name: arm64 test build (local only, never pushed)
+        if: inputs.test_arm64
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/image/Dockerfile
+          platforms: linux/arm64
+          push: false
+      - name: Build linux/amd64 (release, loaded locally - not pushed yet)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/image/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          provenance: false
+          tags: ${{ env.IMAGE }}:${{ needs.meta.outputs.version }}
+          build-args: |
+            ALELT_BUILD_VERSION=${{ needs.meta.outputs.version }}
+            ALELT_BUILD_REVISION=${{ github.sha }}
+      - name: Save image tar (offline install asset)
+        run: |
+          v=${{ needs.meta.outputs.version }}
+          mkdir -p out && docker save "$IMAGE:$v" -o "out/alelt-$v-linux-amd64.image.tar"
+      - name: SBOM (syft, SPDX)
+        uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
+        with:
+          image: ${{ env.IMAGE }}:${{ needs.meta.outputs.version }}
+          syft-version: ${{ env.SYFT_VERSION }}
+          format: spdx-json
+          output-file: out/alelt-${{ needs.meta.outputs.version }}.sbom.spdx.json
+          upload-artifact: false
+      - name: Vulnerability gate (trivy; fixable HIGH + CRITICAL fail the release)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          input: out/alelt-${{ needs.meta.outputs.version }}-linux-amd64.image.tar
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        if: needs.meta.outputs.publish == 'true'
+        with:
+          registry: ${{ vars.REGISTRY || 'ghcr.io' }}
+          username: ${{ secrets.REGISTRY_USER || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+      - name: Push (only after the scan passed)
+        id: push
+        if: needs.meta.outputs.publish == 'true'
+        run: |
+          ref="$IMAGE:${{ needs.meta.outputs.version }}"
+          docker push "$ref"
+          d=$(docker inspect --format '{{index .RepoDigests 0}}' "$ref"); d="${d#*@}"
+          echo "digest=$d" >> "$GITHUB_OUTPUT"
+          echo "$IMAGE@$d" > out/alelt-${{ needs.meta.outputs.version }}.image.digest
+      - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        if: needs.meta.outputs.publish == 'true'
+        with: { cosign-release: "${{ env.COSIGN_VERSION }}" }
+      - name: Sign image + attach SBOM attestation
+        if: needs.meta.outputs.publish == 'true'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          REF: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          SBOM: out/alelt-${{ needs.meta.outputs.version }}.sbom.spdx.json
+        run: |
+          if [ -n "$COSIGN_PRIVATE_KEY" ]; then k="--key env://COSIGN_PRIVATE_KEY"; else k=""; fi
+          # shellcheck disable=SC2086
+          cosign sign --yes $k "$REF"
+          # shellcheck disable=SC2086
+          cosign attest --yes $k --type spdxjson --predicate "$SBOM" "$REF"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: image, path: out/ }
+
+  bundle:
+    needs: [meta, image, agent-windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write          # keyless cosign sign-blob
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: { path: in }
+      - name: Assemble release (daemon, compose, helm, notes, checksums)
+        run: |
+          v=${{ needs.meta.outputs.version }}
+          zip=$(ls in/agent-windows/*windows-x64.zip | head -1)
+          sh deploy/release/build-release.sh --version "$v" --skip-images --agent-zip "$zip" --out-root out
+          cp in/agent-windows/*.msi "out/$v/" 2>/dev/null || true
+          cp in/image/* "out/$v/"
+          (cd "out/$v" && find . -maxdepth 1 -type f ! -name SHA256SUMS | sed 's#^\./##' | sort | xargs sha256sum > SHA256SUMS && cat SHA256SUMS)
+      - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+      - name: Sign SHA256SUMS (cosign sign-blob)
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          cd "out/${{ needs.meta.outputs.version }}"
+          if [ -n "$COSIGN_PRIVATE_KEY" ]; then k="--key env://COSIGN_PRIVATE_KEY"; else k=""; fi
+          # shellcheck disable=SC2086
+          cosign sign-blob --yes $k --bundle SHA256SUMS.cosign.bundle SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ needs.meta.outputs.version }}
+          path: out/${{ needs.meta.outputs.version }}/
+      - name: Publish GitHub release (tags only, draft)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          draft: true
+          body_path: out/${{ needs.meta.outputs.version }}/RELEASE-NOTES.md
+          files: out/${{ needs.meta.outputs.version }}/*

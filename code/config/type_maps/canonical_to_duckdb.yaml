@@ -1,0 +1,25 @@
+# Canonical type -> DuckDB physical type (dialect duckdb).
+engine: duckdb
+types:
+  BOOLEAN: boolean
+  SHORT: smallint
+  INT: integer
+  LONG: bigint
+  DECIMAL: decimal({p},{s})
+  FLOAT: real
+  DOUBLE: double
+  LOCALDATE: date
+  LOCALTIME: time
+  LOCALDATETIME: timestamp
+  INSTANT: timestamptz
+  STRING: varchar
+  BINARY: blob
+  JSON: json
+  XML: varchar
+  UNKNOWN: null
+defaults:
+  STRING_without_length: varchar
+  DECIMAL_without_precision: decimal(38,10)
+  DECIMAL_over_max: decimal(38,10)
+limits:
+  max_decimal_precision: 38

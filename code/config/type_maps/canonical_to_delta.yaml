@@ -1,0 +1,24 @@
+# Canonical type -> Delta Lake type (alelt_dst_delta, delta-rs; read by Databricks/Spark). LOCALTIME has no Delta
+# type: stored as ISO string. LOCALDATETIME -> timestamp_ntz (Delta writer feature timestampNtz).
+engine: delta
+types:
+  BOOLEAN: boolean
+  SHORT: short
+  INT: integer
+  LONG: long
+  DECIMAL: decimal({p},{s})
+  FLOAT: float
+  DOUBLE: double
+  LOCALDATE: date
+  LOCALTIME: string
+  LOCALDATETIME: timestamp_ntz
+  INSTANT: timestamp
+  STRING: string
+  BINARY: binary
+  JSON: string
+  XML: string
+  UNKNOWN: null
+defaults:
+  DECIMAL_without_precision: decimal(38,0)
+limits:
+  DECIMAL_max_precision: 38

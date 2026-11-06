@@ -1,0 +1,7 @@
+# Linux agent (aleltd) runtime: locked with hashes into requirements-agent.lock by deploy/image/lock.sh (DEP-04/20).
+pydantic>=2.6
+zstandard>=0.22
+psycopg2-binary>=2.9.9
+PyMySQL>=1.1
+python-tds>=1.15
+oracledb>=2.0

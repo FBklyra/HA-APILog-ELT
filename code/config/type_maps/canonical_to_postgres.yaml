@@ -1,0 +1,22 @@
+# Canonical type -> PostgreSQL physical type (postgres destination; owned by the hub-core stream).
+engine: postgres
+types:
+  BOOLEAN: boolean
+  SHORT: smallint
+  INT: integer
+  LONG: bigint
+  DECIMAL: numeric({p},{s})
+  FLOAT: real
+  DOUBLE: double precision
+  LOCALDATE: date
+  LOCALTIME: time
+  LOCALDATETIME: timestamp
+  INSTANT: timestamptz
+  STRING: varchar({n})
+  BINARY: bytea
+  JSON: jsonb
+  XML: xml
+  UNKNOWN: null
+defaults:
+  STRING_without_length: text
+  DECIMAL_without_precision: numeric

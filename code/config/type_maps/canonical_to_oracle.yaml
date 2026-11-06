@@ -1,0 +1,31 @@
+# Canonical type -> Oracle Database physical type (dialect oracle). Oracle has no TIME type: LOCALTIME is ISO text.
+# Note: Oracle stores '' as NULL.
+engine: oracle
+types:
+  BOOLEAN: number(1)
+  SHORT: number(5)
+  INT: number(10)
+  LONG: number(19)
+  DECIMAL: number({p},{s})
+  FLOAT: binary_float
+  DOUBLE: binary_double
+  LOCALDATE: date
+  LOCALTIME: varchar2(18)
+  LOCALDATETIME: timestamp(9)
+  INSTANT: timestamp(9)         # stored as UTC (the thin driver binds datetimes without zone)
+  STRING: varchar2({n} char)
+  BINARY: raw({n})
+  JSON: clob
+  XML: clob
+  UNKNOWN: null
+defaults:
+  STRING_without_length: clob
+  STRING_over_max: clob
+  BINARY_without_length: blob
+  BINARY_over_max: blob
+  DECIMAL_without_precision: number
+  DECIMAL_over_max: number
+limits:
+  max_varchar: 4000
+  max_varbinary: 2000
+  max_decimal_precision: 38

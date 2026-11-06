@@ -1,0 +1,64 @@
+# ALELT hub-side remote capture (postgres, mysql, mariadb, sqlserver, oracle captured FROM the hub; alelt_capture).
+# One runner per connection is enforced by a metadata lock, so a second host may run this unit as a standby.
+# Use the edge agent (alelt.service) instead when the capture must run next to the database.
+[Unit]
+Description=ALELT hub remote capture runners
+Documentation=file:/opt/alelt/app/connectors/sources/_spi/REMOTE.md
+After=network-online.target alelt-hub.service
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=alelt
+Group=alelt
+EnvironmentFile=/etc/alelt/hub.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 ALELT_ROLE=capture ALELT_LOG_NAME=capture
+Environment=PYTHONPATH=/opt/alelt/app/hub:/opt/alelt/app/connectors/sources/db2:/opt/alelt/app/connectors/sources/postgres:/opt/alelt/app/connectors/sources/mysql:/opt/alelt/app/connectors/sources/mariadb:/opt/alelt/app/connectors/sources/sqlserver:/opt/alelt/app/connectors/sources/oracle:/opt/alelt/app/connectors/destinations/postgres
+ExecStart=/opt/alelt/venv/bin/python -m alelt_hub.cli capture
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=10
+
+StateDirectory=alelt
+ConfigurationDirectory=alelt
+UMask=0027
+MemoryMax=2G
+TasksMax=128
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/alelt
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RemoveIPC=yes
+SystemCallArchitectures=native
+# DEP-21: same syscall allow-list as the agent unit (cffi / native decoder need no extra groups)
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap
+SystemCallErrorNumber=EPERM
+# Outbound targets differ per install (metadata DB, destinations, S3): restrict with a drop-in, e.g.
+#   [Service]
+#   IPAddressDeny=any
+#   IPAddressAllow=localhost 10.0.0.0/8
+
+[Install]
+WantedBy=multi-user.target

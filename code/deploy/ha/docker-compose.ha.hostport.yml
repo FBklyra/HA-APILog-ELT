@@ -1,0 +1,7 @@
+# Per-host overlay: publish the api on this host for an external LB (one compose project per host).
+# ALELT_API_BIND is required (no silent 0.0.0.0, DEP-01/DEP-15): the host interface your LB reaches, never a public one.
+#   docker compose -f docker-compose.ha.yml -f docker-compose.ha.secrets.yml -f docker-compose.ha.hostport.yml up -d
+services:
+  alelt:
+    ports:
+      - "${ALELT_API_BIND:?set ALELT_API_BIND to the interface your LB reaches}:${ALELT_API_PORT:-8080}:8080"

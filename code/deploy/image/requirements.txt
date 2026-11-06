@@ -1,0 +1,35 @@
+# ALELT product image runtime (Python 3.12). Hub, every source connector and destination plugin (REQ-19/22).
+# Binary wheels only (amd64 + arm64). Licences: see NOTICE / docs/legal/SPDX.md.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
+pyyaml>=6.0
+pyjwt[crypto]>=2.8
+zstandard>=0.22
+cffi>=1.16                   # libaleltdecode binding (C Db2 decoder)
+httpx>=0.27
+# Snowflake destination
+pyarrow>=15
+cryptography>=42
+snowflake-connector-python>=3.10
+# PostgreSQL remote source (alelt_src_postgres): LGPL-3.0 with linking exception, dynamic use
+psycopg2-binary>=2.9.9
+# MySQL 9 / MariaDB sources + sql destination (MIT)
+PyMySQL>=1.1
+# SQL Server source + sql destination (MIT, pure Python)
+python-tds>=1.17
+# Oracle source + sql destination, thin mode, no client libraries (Apache-2.0 / UPL)
+oracledb>=2
+# sql destination: DuckDB (MIT)
+duckdb>=1.0
+# lake destinations: Iceberg (Apache-2.0), Delta (Apache-2.0)
+pyiceberg>=0.8
+deltalake>=0.20
+# streaming destination: Kafka / Redpanda (Apache-2.0, bundles librdkafka BSD-2)
+confluent-kafka>=2.5
+# ClickHouse destination (Apache-2.0)
+clickhouse-connect>=0.8
+# BigQuery destination (Apache-2.0)
+google-cloud-bigquery>=3.20

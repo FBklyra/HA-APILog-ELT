@@ -1,0 +1,64 @@
+# ALELT hub worker (decode -> txn -> load), template: one instance per worker.
+#   systemctl enable --now alelt-worker@1 alelt-worker@2      (N workers, each ALELT_NODE_ID=worker-<N>)
+[Unit]
+Description=ALELT hub worker %i (decode, transactions, load)
+Documentation=file:/opt/alelt/app/deploy/linux/README.md
+After=network-online.target alelt-hub.service
+Wants=network-online.target
+PartOf=alelt-hub.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=alelt
+Group=alelt
+EnvironmentFile=/etc/alelt/hub.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 ALELT_ROLE=worker ALELT_LOG_NAME=worker-%i ALELT_NODE_ID=%H:worker-%i
+Environment=PYTHONPATH=/opt/alelt/app/hub:/opt/alelt/app/connectors/sources/db2:/opt/alelt/app/connectors/sources/postgres:/opt/alelt/app/connectors/sources/mysql:/opt/alelt/app/connectors/sources/mariadb:/opt/alelt/app/connectors/sources/sqlserver:/opt/alelt/app/connectors/sources/oracle:/opt/alelt/app/connectors/destinations/postgres:/opt/alelt/app/connectors/destinations/snowflake
+ExecStart=/opt/alelt/venv/bin/python -m alelt_hub.cli worker
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=5
+
+StateDirectory=alelt
+ConfigurationDirectory=alelt
+UMask=0027
+MemoryMax=4G
+TasksMax=256
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/alelt
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RemoveIPC=yes
+SystemCallArchitectures=native
+# DEP-21: same syscall allow-list as the agent unit (cffi / native decoder need no extra groups)
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap
+SystemCallErrorNumber=EPERM
+# Outbound targets differ per install (metadata DB, destinations, S3): restrict with a drop-in, e.g.
+#   [Service]
+#   IPAddressDeny=any
+#   IPAddressAllow=localhost 10.0.0.0/8
+
+[Install]
+WantedBy=multi-user.target

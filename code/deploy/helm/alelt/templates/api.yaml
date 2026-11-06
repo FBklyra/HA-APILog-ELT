@@ -1,0 +1,58 @@
+{{- if eq .Values.mode "ha" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "alelt.fullname" . }}-api
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {{ include "alelt.rollingUpdate" . }}
+  selector:
+    matchLabels: {{- include "alelt.selector" (dict "root" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "alelt.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      {{- with .Values.api.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "alelt.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountToken }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- include "alelt.scheduling" (dict "root" . "component" "api") | nindent 6 }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: api
+          image: {{ include "alelt.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["api"]
+          ports:
+            - { name: http, containerPort: {{ .Values.api.port }} }
+          env:
+            - { name: ALELT_ROLE, value: api }
+            - { name: ALELT_PORT, value: {{ .Values.api.port | quote }} }
+            {{- include "alelt.env" . | nindent 12 }}
+          envFrom: {{- include "alelt.envFrom" . | nindent 12 }}
+          {{- include "alelt.apiProbes" . | nindent 10 }}
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: varlib, mountPath: /var/lib/alelt }
+      volumes:
+        {{- include "alelt.scratchVolumes" . | nindent 8 }}
+        - { name: varlib, emptyDir: {} }
+{{- end }}

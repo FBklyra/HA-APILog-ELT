@@ -1,0 +1,122 @@
+# ALELT - product install (any Docker host: laptop, VM, on-prem, any cloud). Default metadata = bundled Postgres.
+#   cp .env.example .env   (edit secrets)  &&  docker compose up -d   ->  http://localhost:8080
+# SQLite quick start (single host, no Postgres service):  docker compose -f docker-compose.sqlite.yml up -d
+# External / managed Postgres: set ALELT_DB_URL + ALELT_DEST_URL in .env, then
+#   docker compose up -d --no-deps migrate alelt alelt-worker
+name: alelt
+
+x-alelt-env: &alelt-env
+  ALELT_ENV: ${ALELT_ENV:-local}
+  ALELT_DEV_AUTH: ${ALELT_DEV_AUTH:-1}
+  ALELT_DB_URL: ${ALELT_DB_URL:-postgresql+psycopg://${POSTGRES_USER:-alelt}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${ALELT_DB_NAME:-alelt}}
+  ALELT_DEST_URL: ${ALELT_DEST_URL:-postgresql://${POSTGRES_USER:-alelt}:${POSTGRES_PASSWORD}@postgres:5432/${ALELT_LANDING_DB:-alelt_landing}}
+  ALELT_DESTINATION: ${ALELT_DESTINATION:-alelt_dst_postgres.connector:PostgresDestination}
+  ALELT_AGENT_AUTH: ${ALELT_AGENT_AUTH:-token}
+  ALELT_AGENT_TOKENS: ${ALELT_AGENT_TOKENS:-}
+  ALELT_AGENT_THUMBPRINTS: ${ALELT_AGENT_THUMBPRINTS:-}
+  ALELT_OIDC_ISSUER: ${ALELT_OIDC_ISSUER:-}
+  ALELT_OIDC_AUDIENCE: ${ALELT_OIDC_AUDIENCE:-}
+  ALELT_OIDC_JWKS_URL: ${ALELT_OIDC_JWKS_URL:-}
+  ALELT_TABLES_CONFIG: ${ALELT_TABLES_CONFIG:-}
+  ALELT_LOAD_MAX_LATENCY_S: ${ALELT_LOAD_MAX_LATENCY_S:-0}
+  ALELT_LOG_LEVEL: ${ALELT_LOG_LEVEL:-INFO}
+  ALELT_SNOWFLAKE_ACCOUNT: ${ALELT_SNOWFLAKE_ACCOUNT:-}
+  ALELT_SNOWFLAKE_USER: ${ALELT_SNOWFLAKE_USER:-}
+  ALELT_SNOWFLAKE_ROLE: ${ALELT_SNOWFLAKE_ROLE:-ALELT_LOADER}
+  ALELT_SNOWFLAKE_WAREHOUSE: ${ALELT_SNOWFLAKE_WAREHOUSE:-ALELT_WH}
+  ALELT_SNOWFLAKE_DATABASE: ${ALELT_SNOWFLAKE_DATABASE:-}
+  ALELT_SNOWFLAKE_PRIVATE_KEY_PATH: ${ALELT_SNOWFLAKE_PRIVATE_KEY_PATH:-}
+  ALELT_METADATA: ${ALELT_METADATA:-postgres}
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alelt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${ALELT_DB_NAME:-alelt}
+      ALELT_LANDING_DB: ${ALELT_LANDING_DB:-alelt_landing}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${ALELT_BIND:-127.0.0.1}:${ALELT_PG_HOST_PORT:-55432}:5432"   # loopback by default (DEP-10); DBeaver / psql from this host
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  migrate:
+    image: ${ALELT_IMAGE:-alelt:local}
+    build:
+      context: ../..
+      dockerfile: deploy/image/Dockerfile
+      args:
+        ALELT_BUILD_VERSION: ${ALELT_VERSION:-0.1.0}
+        ALELT_BUILD_REVISION: ${ALELT_REVISION:-local}
+        ALELT_BUILD_DATE: ${ALELT_BUILD_DATE:-unknown}
+    command: ["migrate"]
+    environment: *alelt-env
+    init: true
+    restart: "no"
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+    logging: *logging
+
+  alelt:
+    image: ${ALELT_IMAGE:-alelt:local}
+    command: ["api"]
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${ALELT_BIND:-127.0.0.1}:${ALELT_HTTP_PORT:-8080}:8080"   # loopback by default (DEP-10): dev auth = PlatformAdmin for any caller
+    environment:
+      <<: *alelt-env
+      ALELT_ROLE: api
+      ALELT_LOG_NAME: api
+    volumes:
+      - data:/var/lib/alelt
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    logging: *logging
+
+  alelt-worker:
+    image: ${ALELT_IMAGE:-alelt:local}
+    command: ["worker"]
+    init: true
+    restart: unless-stopped
+    environment:
+      <<: *alelt-env
+      ALELT_ROLE: worker
+      ALELT_LOG_NAME: worker
+      ALELT_WORKER_METRICS_PORT: "9100"
+    volumes:
+      - data:/var/lib/alelt
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; p='/tmp/alelt_worker_alive'; sys.exit(0 if os.path.exists(p) and time.time() - os.path.getmtime(p) < 120 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    logging: *logging
+
+volumes:
+  pg_data: {}
+  data: {}      # hub spool + logs, shared by api and worker

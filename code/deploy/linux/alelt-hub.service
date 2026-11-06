@@ -1,0 +1,68 @@
+# ALELT hub API (console + agent gateway) for non-Docker installs. Config: /etc/alelt/hub.env.
+# Schema upgrade runs before every start (idempotent). Workers: alelt-worker@N.service. Remote capture:
+# alelt-capture.service. Logs: journalctl -u alelt-hub -f
+[Unit]
+Description=ALELT hub API (console + agent gateway)
+Documentation=file:/opt/alelt/app/deploy/linux/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=alelt
+Group=alelt
+EnvironmentFile=/etc/alelt/hub.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 ALELT_ROLE=api ALELT_LOG_NAME=api
+Environment=PYTHONPATH=/opt/alelt/app/hub:/opt/alelt/app/connectors/sources/db2:/opt/alelt/app/connectors/sources/postgres:/opt/alelt/app/connectors/sources/mysql:/opt/alelt/app/connectors/sources/mariadb:/opt/alelt/app/connectors/sources/sqlserver:/opt/alelt/app/connectors/sources/oracle:/opt/alelt/app/connectors/destinations/postgres:/opt/alelt/app/connectors/destinations/snowflake
+ExecStartPre=/opt/alelt/venv/bin/python -m alelt_hub.cli migrate
+ExecStart=/opt/alelt/venv/bin/python -m alelt_hub.cli api
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStartSec=180
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=5
+
+StateDirectory=alelt
+StateDirectoryMode=0750
+ConfigurationDirectory=alelt
+UMask=0027
+MemoryMax=2G
+TasksMax=256
+LimitNOFILE=16384
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/alelt
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RemoveIPC=yes
+SystemCallArchitectures=native
+# DEP-21: same syscall allow-list as the agent unit (cffi / native decoder need no extra groups)
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap
+SystemCallErrorNumber=EPERM
+# Outbound targets differ per install (metadata DB, destinations, S3): restrict with a drop-in, e.g.
+#   [Service]
+#   IPAddressDeny=any
+#   IPAddressAllow=localhost 10.0.0.0/8
+
+[Install]
+WantedBy=multi-user.target

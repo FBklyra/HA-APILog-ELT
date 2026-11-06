@@ -1,0 +1,6 @@
+# Produced by harness runs; the console reads them from the run host, they are not versioned.
+result.json
+result.*.json
+*.json.tmp
+_run/
+L1/catalog_snapshot.json

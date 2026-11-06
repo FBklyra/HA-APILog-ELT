@@ -1,0 +1,45 @@
+Universal HA API Log ELT (ALELT)
+Copyright 2026 Freddy Beltran
+
+1. Licence
+   Licensed under the Apache License, Version 2.0 (see LICENSE). Free to use, modify and distribute
+   under its terms.
+
+2. No warranty, no liability
+   Provided "AS IS", without warranties or conditions of any kind. The authors and contributors accept
+   no liability for any damage, data loss or corruption, downtime, costs or compliance issues. You are
+   responsible for testing, backups, approvals and for how you run it, especially against production.
+   See DISCLAIMER.md and sections 7 and 8 of the Apache License, Version 2.0.
+
+3. Built exclusively from public information
+   Capture uses only each database vendor's official, publicly documented log / change APIs (IBM Db2
+   db2ReadLog, PostgreSQL logical decoding / pgoutput, MySQL and MariaDB replication protocol, Oracle
+   LogMiner, Microsoft SQL Server CDC functions); destinations use only their public documented APIs.
+   Built solely from vendors' public documentation and public product information. No reverse
+   engineering, no undocumented formats, no proprietary or confidential material, no vendor code or
+   headers included. See docs/PUBLIC-APIS.md and docs/legal/PROVENANCE.md.
+
+No affiliation
+  ALELT is an independent project. It is not affiliated with, endorsed by or sponsored by any database,
+  data platform or cloud vendor.
+
+Trademarks
+  IBM and Db2 are trademarks of International Business Machines Corporation. Oracle and MySQL are
+  trademarks of Oracle and/or its affiliates. Microsoft, SQL Server and Fabric are trademarks of the
+  Microsoft group of companies. PostgreSQL is a trademark of the PostgreSQL Community Association.
+  MariaDB is a trademark of MariaDB plc. Snowflake is a trademark of Snowflake Inc. Databricks and Delta
+  Lake are trademarks of Databricks, Inc. / the Linux Foundation. Apache, Apache Iceberg and Apache Kafka
+  are trademarks of The Apache Software Foundation. ClickHouse is a trademark of ClickHouse, Inc.
+  Redpanda is a trademark of Redpanda Data, Inc. Amazon Redshift and AWS are trademarks of Amazon.com,
+  Inc. Google, BigQuery and Google Cloud are trademarks of Google LLC. All other trademarks belong to
+  their respective owners. Names are used only to identify the engines a connector works with.
+
+Third-party components not included
+  Vendor client libraries and headers (for example the IBM Db2 client db2app64.dll, db2cli64.dll,
+  sqlenv.h, db2ApiDf.h; Oracle client libraries; vendor drivers) are NOT included in this distribution.
+  Obtain them from the vendor and use them under the vendor's licence terms.
+
+Third-party open-source components
+  Container images and packages bundle open-source dependencies under their own licences (for example
+  Python, FastAPI, SQLAlchemy, pydantic, psycopg, pyarrow, zstandard, React, React Router). The SBOM
+  published with each release lists every component and licence.

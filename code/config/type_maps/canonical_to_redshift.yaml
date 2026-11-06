@@ -1,0 +1,26 @@
+# Canonical type -> Amazon Redshift type (alelt_dst_redshift).
+engine: redshift
+types:
+  BOOLEAN: BOOLEAN
+  SHORT: SMALLINT
+  INT: INTEGER
+  LONG: BIGINT
+  DECIMAL: DECIMAL({p},{s})
+  FLOAT: REAL
+  DOUBLE: DOUBLE PRECISION
+  LOCALDATE: DATE
+  LOCALTIME: TIME
+  LOCALDATETIME: TIMESTAMP
+  INSTANT: TIMESTAMPTZ
+  STRING: VARCHAR({n})
+  BINARY: VARBYTE
+  JSON: SUPER
+  XML: VARCHAR(65535)
+  UNKNOWN: null
+defaults:
+  STRING_without_length: VARCHAR(65535)
+  STRING_over_max: VARCHAR(65535)
+  DECIMAL_without_precision: DECIMAL(38,0)
+limits:
+  STRING_max_length: 65535
+  DECIMAL_max_precision: 38

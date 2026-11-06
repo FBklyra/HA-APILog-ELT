@@ -1,0 +1,43 @@
+# Build context = repository root. Keep the image vendor-neutral and small.
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/build
+**/out
+.alelt
+.git
+.github
+console/dist
+console/test-results
+console/playwright-report
+extensions
+exchange
+prompts
+docs
+runbooks
+edge-agent
+dist
+reviews
+lab
+# secrets never enter the build context (DEP-27): every .env / secrets dir / key or cert file, wherever it lives
+**/.env
+**/.env.*
+**/secrets
+**/*.pem
+**/*.key
+**/*.p8
+**/*.pfx
+**/*.p12
+**/*.crt
+**/*.jks
+# test harnesses never ship in the product image (DEP-27): only the ladder evidence files the console shows
+tests/**
+!tests/golden
+!tests/golden/**
+!tests/ladder
+!tests/ladder/*/
+!tests/ladder/*/result*.json

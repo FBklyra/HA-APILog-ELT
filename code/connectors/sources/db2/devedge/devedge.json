@@ -1,0 +1,17 @@
+{
+  "hub_url": "http://127.0.0.1:8080",
+  "agent_id": "devedge-local",
+  "connection_id": "db2-local",
+  "database": "SAMPLE",
+  "schemas": ["APP"],
+  "token_env": "ALELT_AGENT_TOKEN",
+  "db2_bin": "D:/IBM/SQLLIB/BIN",
+  "spool_dir": "../../../../.alelt/devedge-spool",
+  "spool_max_mb": 256,
+  "codec": "zlib",
+  "start": "current",
+  "heartbeat_s": 15,
+  "command_poll_s": 2,
+  "state_file": "../../../../.alelt/devedge-state.json",
+  "limits": {"cpu_pct": 50, "mem_mb": 512, "batch_kb": 256, "max_rate_kbps": 0, "poll_ms": 1000}
+}

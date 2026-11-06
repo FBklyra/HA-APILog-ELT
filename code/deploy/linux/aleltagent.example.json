@@ -1,0 +1,36 @@
+{
+  "_comment": "ALELT Linux agent config (/etc/alelt/aleltagent.json, root:alelt 0640). Same keys as the Windows agent; no secrets (agent.env).",
+  "agent_id": "edge-pg01",
+  "connection_id": "CHANGE-ME",
+  "environment": "TEST",
+  "deny_hosts": [],
+  "hub": {
+    "url": "https://hub.example.internal:8443",
+    "mode": "mtls",
+    "client_cert_file": "/etc/alelt/agent.crt",
+    "client_key_file": "/etc/alelt/agent.key",
+    "ca_file": "/etc/alelt/hub-ca.pem",
+    "server_pins_sha256": [],
+    "heartbeat_s": 15,
+    "command_wait_s": 10,
+    "connect_timeout_ms": 10000,
+    "request_timeout_ms": 60000,
+    "backoff_max_s": 300
+  },
+  "spool": { "dir": "/var/lib/alelt/spool", "max_mb": 2048 },
+  "log": { "level": "INFO", "timestamps": "auto" },
+  "limits": { "cpu_pct": 50, "mem_mb": 512, "batch_kb": 1024, "max_rate_kbps": 0, "poll_ms": 1000 },
+  "limits_max": { "_comment": "DBA-approved ceilings; keep MemoryMax/CPUQuota of alelt.service in line", "cpu_pct": 100, "mem_mb": 1024, "batch_kb": 8192, "max_rate_kbps": 0, "poll_ms": 600000 },
+  "require_job_limits": true,
+  "governor": { "enabled": true, "interval_s": 15, "host_cpu_pause_pct": 85, "host_cpu_resume_pct": 70, "sustain_samples": 3 },
+  "source": {
+    "_comment": "db2: {engine:db2, database:<DATABASE>, dll_dirs:[/home/db2inst1/sqllib/lib64], settings:{catalog_schemas:[<SCHEMA>]}}",
+    "engine": "postgres",
+    "settings": { "host": "127.0.0.1", "port": 5432, "database": "appdb", "user": "alelt_capture", "slot": "alelt_slot", "publication": "alelt_pub" },
+    "password_env": "ALELT_SOURCE_PASSWORD"
+  },
+  "snapshot": { "allowed_tables": [], "max_chunk_rows": 5000 },
+  "capture": { "autostart": false, "start": "current", "batch_ms": 1000, "max_txn_mb": 1024, "catalog_s": 300 },
+  "ha": { "mode": "standalone", "lease_ttl_s": 30, "renew_s": 10 },
+  "shutdown": { "deadline_s": 45, "drain_s": 10 }
+}

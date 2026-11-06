@@ -1,0 +1,14 @@
+{
+  "doc": "Allow-list matcher vectors shared by the three agents (docs/AGENT-COMMANDS.md, allow-list). Each case: [entry, schema, table, expected]. `invalid_entries` are refused at config load.",
+  "cases": [
+    ["S.T", "S", "T", true],
+    ["S.*", "S", "ANY", true],
+    ["S.*", "SX", "T", false],
+    ["*.*", "S", "T", false],
+    ["s.t", "S", "T", true],
+    ["S.T", "S", "U", false],
+    ["X.*", "S", "U", false],
+    ["s.*", "S", "OTHER", true]
+  ],
+  "invalid_entries": ["*.*", "*.T", "S", ".T", "S.", "S.T*"]
+}

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: alelt
+description: ALELT engine-agnostic CDC replication hub (console, API, agent gateway, workers) - standalone or HA
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.25.0-0"
+home: https://example.invalid/alelt
+keywords: [cdc, replication, db2, snowflake, postgres]
+maintainers:
+  - name: Freddy Beltran
+annotations:
+  alelt/guide: deploy/HA.md

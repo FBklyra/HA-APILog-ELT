@@ -1,0 +1,2 @@
+pydantic>=2.6
+tzdata>=2024.1  # zoneinfo on Windows

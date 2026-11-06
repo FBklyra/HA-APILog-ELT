@@ -1,0 +1,65 @@
+# Node / console
+node_modules/
+console/dist/
+console/playwright-report/
+console/test-results/
+console/blob-report/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Native builds
+build/
+out/
+cmake-build-*/
+*.obj
+*.pdb
+*.ilk
+CMakeUserPresets.json
+
+# Logs, spool, local data
+*.log
+spool/
+**/spool/
+deploy/hub/data/
+# agent state / hub spool of local runs (DEP-11)
+.alelt/
+tests/ladder/**/artifacts/
+# result.json files under tests/ladder ARE committed (ladder evidence)
+
+# Secrets (R9) - never commit
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.p8
+secrets/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# company/private configuration — never in the repo
+company-config/
+config/local/
+*.prod.*
+*.company.*

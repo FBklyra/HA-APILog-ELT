@@ -1,0 +1,200 @@
+# ALELT - HA install: 2+ hosts, N stateless API replicas + N workers, external Postgres + S3-compatible spool.
+# Operator guide: ../HA.md. Non-HA install: ../local (unchanged).
+#
+#   Production = secrets as files (DEP-12): always add docker-compose.ha.secrets.yml; plain ALELT_* secret values in .env
+#   are for the single-machine rehearsal only.
+#   Docker Swarm (2+ hosts; Swarm-only keys live in the swarm overlay, DEP-15):
+#     set -a; . ./.env; set +a
+#     docker stack deploy -c docker-compose.ha.yml -c docker-compose.ha.secrets.yml -c docker-compose.ha.swarm.yml alelt
+#   Plain compose, one project per host behind your own LB (publishes the api on ALELT_API_BIND explicitly):
+#     docker compose -f docker-compose.ha.yml -f docker-compose.ha.secrets.yml -f docker-compose.ha.hostport.yml up -d
+#   Single-machine rehearsal with bundled S3 (SeaweedFS) + Postgres + HAProxy (NOT production; loopback binds):
+#     docker compose -f docker-compose.ha.yml --profile demo --profile lb up -d --scale alelt=2 --scale alelt-worker=2
+#
+# HA rules (X-46..X-50): metadata = Postgres (managed, Patroni, ...) by URL; spool = s3://bucket/prefix (no shared
+# local volume); every api/worker replica is stateless and interchangeable; the LB health-checks /readyz.
+# Secrets: ALELT_<NAME>_FILE=/run/secrets/<x> is read into ALELT_<NAME> at start (R9); see docker-compose.ha.secrets.yml.
+name: alelt-ha
+
+x-alelt-env: &alelt-env
+  ALELT_ENV: ${ALELT_ENV:-prod}
+  ALELT_DEV_AUTH: ${ALELT_DEV_AUTH:-0}
+  # metadata (Postgres HA): ALELT_DB_URL, or ALELT_DB_URL_FILE=/run/secrets/alelt_db_url
+  ALELT_DB_URL: ${ALELT_DB_URL:-}
+  ALELT_DB_URL_FILE: ${ALELT_DB_URL_FILE:-}
+  # destination
+  ALELT_DEST_URL: ${ALELT_DEST_URL:-}
+  ALELT_DEST_URL_FILE: ${ALELT_DEST_URL_FILE:-}
+  ALELT_DESTINATION: ${ALELT_DESTINATION:-alelt_dst_postgres.connector:PostgresDestination}
+  ALELT_SNOWFLAKE_ACCOUNT: ${ALELT_SNOWFLAKE_ACCOUNT:-}
+  ALELT_SNOWFLAKE_USER: ${ALELT_SNOWFLAKE_USER:-}
+  ALELT_SNOWFLAKE_ROLE: ${ALELT_SNOWFLAKE_ROLE:-ALELT_LOADER}
+  ALELT_SNOWFLAKE_WAREHOUSE: ${ALELT_SNOWFLAKE_WAREHOUSE:-ALELT_WH}
+  ALELT_SNOWFLAKE_DATABASE: ${ALELT_SNOWFLAKE_DATABASE:-}
+  ALELT_SNOWFLAKE_PRIVATE_KEY_PATH: ${ALELT_SNOWFLAKE_PRIVATE_KEY_PATH:-}
+  # spool = S3-compatible blob store (MinIO, AWS S3, GCS XML interop, Ceph RGW, Azure via an S3 gateway)
+  ALELT_SPOOL_URL: ${ALELT_SPOOL_URL:?set ALELT_SPOOL_URL=s3://bucket/prefix (HA needs a shared blob store)}
+  ALELT_S3_ENDPOINT: ${ALELT_S3_ENDPOINT:-}
+  ALELT_S3_REGION: ${ALELT_S3_REGION:-us-east-1}
+  ALELT_S3_ADDRESSING: ${ALELT_S3_ADDRESSING:-}
+  ALELT_S3_TIMEOUT_S: ${ALELT_S3_TIMEOUT_S:-30}
+  ALELT_S3_ACCESS_KEY_ID: ${ALELT_S3_ACCESS_KEY_ID:-}
+  ALELT_S3_ACCESS_KEY_ID_FILE: ${ALELT_S3_ACCESS_KEY_ID_FILE:-}
+  ALELT_S3_SECRET_ACCESS_KEY: ${ALELT_S3_SECRET_ACCESS_KEY:-}
+  ALELT_S3_SECRET_ACCESS_KEY_FILE: ${ALELT_S3_SECRET_ACCESS_KEY_FILE:-}
+  # local scratch only (txn spill), per replica, never shared
+  ALELT_SPOOL_DIR: /tmp/alelt-scratch
+  # agents (production: mtls behind the LB; dev: token)
+  ALELT_AGENT_AUTH: ${ALELT_AGENT_AUTH:-mtls}
+  ALELT_AGENT_TOKENS: ${ALELT_AGENT_TOKENS:-}
+  ALELT_AGENT_TOKENS_FILE: ${ALELT_AGENT_TOKENS_FILE:-}
+  ALELT_AGENT_THUMBPRINTS: ${ALELT_AGENT_THUMBPRINTS:-}
+  # F-14: only these TCP peers may assert the client-cert header (the TLS terminator; lb/haproxy-mtls.cfg)
+  ALELT_TRUSTED_PROXIES: ${ALELT_TRUSTED_PROXIES:-}
+  ALELT_THUMBPRINT_HEADER: ${ALELT_THUMBPRINT_HEADER:-X-SSL-Client-Fingerprint}
+  ALELT_PUBLIC_URL: ${ALELT_PUBLIC_URL:-}
+  ALELT_LEASE_TTL_S: ${ALELT_LEASE_TTL_S:-30}
+  # console auth
+  ALELT_OIDC_ISSUER: ${ALELT_OIDC_ISSUER:-}
+  ALELT_OIDC_AUDIENCE: ${ALELT_OIDC_AUDIENCE:-}
+  ALELT_OIDC_JWKS_URL: ${ALELT_OIDC_JWKS_URL:-}
+  ALELT_TABLES_CONFIG: ${ALELT_TABLES_CONFIG:-}
+  ALELT_LOAD_MAX_LATENCY_S: ${ALELT_LOAD_MAX_LATENCY_S:-0}
+  ALELT_LOG_LEVEL: ${ALELT_LOG_LEVEL:-INFO}
+  # behind an LB/proxy: trust X-Forwarded-* only from it ('*' is refused when ALELT_ENV=prod; DEP-13)
+  ALELT_FORWARDED_ALLOW_IPS: ${ALELT_FORWARDED_ALLOW_IPS:-127.0.0.1}
+  ALELT_ARCHIVE_RETENTION_HOURS: ${ALELT_ARCHIVE_RETENTION_HOURS:-}
+  # upgrade contract (deploy/UPGRADE.md): only the `migrate` service changes the schema
+  ALELT_AUTO_MIGRATE: ${ALELT_AUTO_MIGRATE:-0}
+
+# per-replica scratch (txn spill) on a bounded tmpfs (DEP-32): a large transaction cannot exhaust host RAM
+x-scratch: &scratch
+  - type: tmpfs
+    target: /tmp
+    tmpfs: { size: "${ALELT_TMP_SIZE_BYTES:-2147483648}" }
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+services:
+  migrate:
+    image: ${ALELT_IMAGE:-alelt:local}
+    command: ["migrate"]
+    init: true
+    environment:
+      <<: *alelt-env
+      ALELT_ROLE: migrate
+    volumes: *scratch
+    restart: "no"
+    healthcheck: { disable: true }
+    logging: *logging
+
+  alelt:
+    image: ${ALELT_IMAGE:-alelt:local}
+    command: ["api"]
+    init: true
+    environment:
+      <<: *alelt-env
+      ALELT_ROLE: api
+      ALELT_LOG_NAME: api
+    volumes: *scratch
+    # no host port (DEP-01/DEP-15): clients reach the api through the LB on the compose network; per-host installs
+    # behind an external LB publish it explicitly with docker-compose.ha.hostport.yml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    depends_on:
+      migrate: { condition: service_completed_successfully, required: false }
+    logging: *logging
+
+  alelt-worker:
+    image: ${ALELT_IMAGE:-alelt:local}
+    command: ["worker"]
+    init: true
+    environment:
+      <<: *alelt-env
+      ALELT_ROLE: worker
+      ALELT_LOG_NAME: worker
+      ALELT_WORKER_METRICS_PORT: "9100"
+    volumes: *scratch
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; p='/tmp/alelt_worker_alive'; sys.exit(0 if os.path.exists(p) and time.time() - os.path.getmtime(p) < 120 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    depends_on:
+      migrate: { condition: service_completed_successfully, required: false }
+    logging: *logging
+
+  # ---------------------------------------------------------------- optional LB (profile lb). Production: your own LB.
+  lb:
+    profiles: ["lb"]
+    image: haproxy:2.9-alpine@sha256:3e29449a6beed63262e36104adf531b4e41b359f61937303f5ea8607987b3748
+    ports:
+      - "${ALELT_LB_BIND:-127.0.0.1}:${ALELT_HTTP_PORT:-8080}:8080"   # loopback by default (DEP-14); ALELT_LB_BIND=0.0.0.0 to expose
+      - "127.0.0.1:${ALELT_LB_STATS_PORT:-8404}:8404"              # stats: loopback only + basic auth
+    environment:
+      ALELT_LB_STATS_USER: ${ALELT_LB_STATS_USER:-admin}
+      ALELT_LB_STATS_PASSWORD: ${ALELT_LB_STATS_PASSWORD:-}
+    volumes:
+      - ./lb/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    restart: unless-stopped
+    depends_on: [alelt]
+    logging: *logging
+
+  # ---------------------------------------------------------------- optional demo backing services (rehearsal only)
+  postgres:
+    profiles: ["demo"]
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alelt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}           # no default password (DEP-14): set it in .env
+      POSTGRES_DB: ${ALELT_DB_NAME:-alelt}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - demo_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  # bundled S3-compatible spool (SeaweedFS 3.85 by digest; the public minio/minio images are no longer pullable
+  # anonymously and `:latest` is never used, DEP-05). Endpoint inside the network: http://s3:9000. No host port.
+  s3:
+    profiles: ["demo"]
+    image: chrislusf/seaweedfs:3.85@sha256:49312939c00c01e5ee6afbd7d728b18027821d3764c35a797a72acd4fdf3296a
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        test -n "$${S3_SECRET_KEY}" || { echo "set ALELT_S3_SECRET_ACCESS_KEY (demo S3; no default, DEP-14)" >&2; exit 1; }
+        printf '{"identities":[{"name":"alelt","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","List","Tagging","Write"]}]}' "$${S3_ACCESS_KEY}" "$${S3_SECRET_KEY}" > /tmp/s3.json
+        weed server -dir=/data -s3 -s3.port=9000 -s3.config=/tmp/s3.json -master.volumeSizeLimitMB=1024 &
+        until echo 's3.bucket.list' | weed shell -master=127.0.0.1:9333 -filer=127.0.0.1:8888 2>/dev/null | grep -q "$${ALELT_DEMO_BUCKET}"; do
+          echo "s3.bucket.create -name $${ALELT_DEMO_BUCKET}" | weed shell -master=127.0.0.1:9333 -filer=127.0.0.1:8888 >/dev/null 2>&1; sleep 2
+        done
+        echo ok > /tmp/bucket-ok; echo "bucket $${ALELT_DEMO_BUCKET} ready"; wait
+    environment:
+      S3_ACCESS_KEY: ${ALELT_S3_ACCESS_KEY_ID:-aleltdemo}
+      S3_SECRET_KEY: ${ALELT_S3_SECRET_ACCESS_KEY:-}
+      ALELT_DEMO_BUCKET: ${ALELT_DEMO_BUCKET:-alelt-spool}
+    volumes:
+      - demo_s3:/data
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/bucket-ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    logging: *logging
+
+volumes:
+  demo_pg: {}
+  demo_s3: {}

@@ -1,0 +1,3 @@
+#!/bin/sh
+# ALELT product entrypoint: alelt <api|worker|migrate|all|version>
+exec python -m alelt_hub.cli "$@"

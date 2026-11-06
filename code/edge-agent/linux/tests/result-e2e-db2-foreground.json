@@ -1,0 +1,28 @@
+{
+ "runs": [
+  {
+   "run": 1,
+   "exit": 0,
+   "stop_s": 0.0,
+   "churn_ok": true,
+   "state_next": "8232:000000000008463D",
+   "hub_next": "8232:000000000008463D",
+   "acked": 3
+  },
+  {
+   "run": 2,
+   "exit": 0,
+   "stop_s": 0.0,
+   "churn_ok": true,
+   "state_next": "8242:000000000008465F",
+   "hub_next": "8242:000000000008465F",
+   "acked": 1
+  }
+ ],
+ "batches": 4,
+ "chain_contiguous": true,
+ "statuses": [
+  "LOADED"
+ ],
+ "pass": true
+}

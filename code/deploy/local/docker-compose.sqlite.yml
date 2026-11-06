@@ -1,0 +1,42 @@
+# ALELT quick start with SQLite metadata: single host, api + worker in ONE container (role `all`), no Postgres.
+#   docker compose -f docker-compose.sqlite.yml up -d   ->  http://localhost:8080
+# The destination must be reachable from the container: set ALELT_DEST_URL (Postgres) or the Snowflake settings in .env.
+# Requires the portable (SQLite-capable) hub backend.
+name: alelt-sqlite
+
+services:
+  alelt:
+    image: ${ALELT_IMAGE:-alelt:local}
+    build:
+      context: ../..
+      dockerfile: deploy/image/Dockerfile
+    command: ["all"]
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${ALELT_BIND:-127.0.0.1}:${ALELT_HTTP_PORT:-8080}:8080"   # loopback by default (DEP-10): dev auth = PlatformAdmin for any caller
+    environment:
+      ALELT_ENV: ${ALELT_ENV:-local}
+      ALELT_DEV_AUTH: ${ALELT_DEV_AUTH:-1}
+      ALELT_METADATA: sqlite
+      ALELT_DB_URL: sqlite:////data/alelt.db
+      ALELT_DEST_URL: ${ALELT_DEST_URL:-}
+      ALELT_DESTINATION: ${ALELT_DESTINATION:-alelt_dst_postgres.connector:PostgresDestination}
+      ALELT_AGENT_AUTH: ${ALELT_AGENT_AUTH:-token}
+      ALELT_AGENT_TOKENS: ${ALELT_AGENT_TOKENS:-}
+      ALELT_OIDC_ISSUER: ${ALELT_OIDC_ISSUER:-}
+      ALELT_OIDC_AUDIENCE: ${ALELT_OIDC_AUDIENCE:-}
+      ALELT_OIDC_JWKS_URL: ${ALELT_OIDC_JWKS_URL:-}
+      ALELT_LOAD_MAX_LATENCY_S: ${ALELT_LOAD_MAX_LATENCY_S:-0}
+      ALELT_ROLE: all
+      ALELT_LOG_NAME: all
+    volumes:
+      - alelt_sqlite:/data
+      - data:/var/lib/alelt
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+volumes:
+  alelt_sqlite: {}
+  data: {}

@@ -1,0 +1,15 @@
+# Optional plugins, loaded by reference ('module:attribute'). The public distribution ships none.
+#   path:            directory added to sys.path (relative to the repository root)
+#   import_commands: `alelt import <name>` subcommands; attribute is register(subparsers) -> None
+#   import_plugins:  console import plugins (alelt_import.plugin.ImportPlugin subclasses), name -> 'module:Class'
+#   profile_files:   extra output-profile YAML files (merged after config/output_profiles.yaml)
+#   reference_mappings: LEGACY_PARITY mapping per output profile (alelt_verify.reference.ReferenceMapping factory),
+#                    output profile -> 'module:function(cand_profile=...)'
+extensions: []
+# Example:
+# extensions:
+#   - path: extensions/<name>
+#     import_commands: {<name>: "<package>.cli:register"}
+#     import_plugins: {<name>: "<package>.plugin:<Class>"}
+#     profile_files: [extensions/<name>/config/output_profiles.yaml]
+#     reference_mappings: {<profile>: "<package>.parity:reference_mapping"}

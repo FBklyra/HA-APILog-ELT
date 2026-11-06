@@ -1,0 +1,241 @@
+# ALELT hub - Azure VM (Ubuntu 24.04), Docker Compose v2.
+# Usage: see README.md. Short form:
+#   cp .env.example .env && sudo ./secrets/fetch-secrets.sh && docker compose up -d
+# Disks (bind-mounted volumes): ${ALELT_PG_DISK} Postgres, ${ALELT_SPOOL_DISK} raw spool, ${ALELT_BACKUP_DISK} dumps + WAL archive.
+name: alelt
+
+x-hub-env: &hub-env
+  ALELT_ENV: ${ALELT_ENV:-prod}
+  ALELT_LOG_FORMAT: json
+  # metadata: full URL from a secret file (R9): postgresql+psycopg://alelt_hub:<pw>@postgres:5432/alelt
+  ALELT_DB_URL_FILE: /run/secrets/alelt_db_url
+  ALELT_SPOOL_DIR: /var/lib/alelt/spool
+  ALELT_SPOOL_CAPACITY_BYTES: ${ALELT_SPOOL_CAPACITY_BYTES:-536870912000}
+  ALELT_MAX_BODY_MB: ${ALELT_MAX_BODY_MB:-64}
+  ALELT_AGENT_AUTH: ${ALELT_AGENT_AUTH:-mtls}
+  ALELT_AGENT_THUMBPRINTS: ${ALELT_AGENT_THUMBPRINTS:-}
+  ALELT_THUMBPRINT_HEADER: X-SSL-Client-Fingerprint
+  # F-14: nginx (fixed address on the backend network) is the only peer allowed to assert the cert header
+  ALELT_TRUSTED_PROXIES: 172.31.250.10
+  ALELT_FORWARDED_ALLOW_IPS: 172.31.250.10
+  ALELT_PUBLIC_URL: ${ALELT_PUBLIC_URL:-}
+  ALELT_AUTO_MIGRATE: "0"
+  ALELT_ARCHIVE_RETENTION_HOURS: ${ALELT_ARCHIVE_RETENTION_HOURS:-}
+  ALELT_OUTPUT_PROFILE: ${ALELT_OUTPUT_PROFILE:-alelt}
+  ALELT_OIDC_TENANT_ID: ${ALELT_OIDC_TENANT_ID:-}
+  ALELT_OIDC_CLIENT_ID: ${ALELT_OIDC_CLIENT_ID:-}
+  ALELT_OIDC_AUDIENCE: ${ALELT_OIDC_AUDIENCE:-}
+  ALELT_ROLE_GROUPS: ${ALELT_ROLE_GROUPS:-}
+  ALELT_DEV_AUTH: "0"
+  ALELT_DESTINATION: ${ALELT_DESTINATION:-alelt_dst_snowflake:SnowflakeDestination}
+  ALELT_SNOWFLAKE_ACCOUNT: ${ALELT_SNOWFLAKE_ACCOUNT:-}
+  ALELT_SNOWFLAKE_USER: ${ALELT_SNOWFLAKE_USER:-}
+  ALELT_SNOWFLAKE_ROLE: ${ALELT_SNOWFLAKE_ROLE:-ALELT_LOADER}
+  ALELT_SNOWFLAKE_WAREHOUSE: ${ALELT_SNOWFLAKE_WAREHOUSE:-ALELT_WH}
+  ALELT_SNOWFLAKE_DATABASE: ${ALELT_SNOWFLAKE_DATABASE:-}
+  ALELT_SNOWFLAKE_PRIVATE_KEY_PATH: /run/secrets/dest_private_key
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "50m", max-file: "10" }
+
+x-hub-build: &hub-build
+  context: ../..
+  dockerfile: deploy/hub/Dockerfile.hub
+
+services:
+  postgres:
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ALELT_DB_NAME:-alelt}
+      POSTGRES_USER: ${ALELT_DB_USER:-alelt_hub}
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    secrets: [pg_password]
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - pg_wal_archive:/var/lib/postgresql/wal_archive
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    shm_size: 1g
+    networks: [backend]
+    logging: *logging
+
+  migrate:
+    build: *hub-build
+    image: ${ALELT_REGISTRY:-alelt}/hub:${ALELT_VERSION:?set ALELT_VERSION (release version or @sha256 digest; never latest)}
+    command: ${ALELT_MIGRATE_CMD:-python -m alelt_hub.cli migrate}
+    environment:
+      <<: *hub-env
+      ALELT_AUTO_MIGRATE: "1"
+    secrets: [pg_password, alelt_db_url]
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+    networks: [backend]
+    logging: *logging
+
+  hub-api:
+    image: ${ALELT_REGISTRY:-alelt}/hub:${ALELT_VERSION:?set ALELT_VERSION (release version or @sha256 digest; never latest)}
+    restart: unless-stopped
+    environment: *hub-env
+    # `cli api` = uvicorn without its own proxy-header rewrite: the hub captures the real peer first (F-14)
+    command: ${ALELT_API_CMD:-python -m alelt_hub.cli api}
+    secrets: [alelt_db_url, dest_private_key]
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    volumes:
+      - spool:/var/lib/alelt/spool
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    networks: [backend, egress]   # egress = destination (Snowflake) + Entra ID JWKS
+    logging: *logging
+
+  worker:
+    image: ${ALELT_REGISTRY:-alelt}/hub:${ALELT_VERSION:?set ALELT_VERSION (release version or @sha256 digest; never latest)}
+    restart: unless-stopped
+    environment: *hub-env
+    command: ${ALELT_WORKER_CMD:-python -m alelt_hub.cli worker}
+    secrets: [alelt_db_url, dest_private_key]
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    volumes:
+      - spool:/var/lib/alelt/spool
+    depends_on:
+      hub-api: { condition: service_healthy }
+    deploy:
+      replicas: ${ALELT_WORKERS:-4}
+    healthcheck:
+      # Worker touches /tmp/alelt_worker_alive on every poll loop (contract with alelt_hub.worker).
+      test: ["CMD", "python", "-c", "import os,sys,time; p='/tmp/alelt_worker_alive'; sys.exit(0 if os.path.exists(p) and time.time() - os.path.getmtime(p) < 120 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks: [backend, egress]
+    logging: *logging
+
+  nginx:
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    build:
+      context: ../..
+      dockerfile: deploy/hub/nginx/Dockerfile
+    image: ${ALELT_REGISTRY:-alelt}/proxy:${ALELT_VERSION:?set ALELT_VERSION (release version or @sha256 digest; never latest)}
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/alelt-strip-identity.conf:/etc/nginx/alelt-strip-identity.conf:ro
+      - ${ALELT_TLS_DIR:-/etc/alelt/tls}:/etc/nginx/tls:ro
+    depends_on:
+      hub-api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --no-check-certificate -O /dev/null --header 'Host: ${ALELT_CONSOLE_HOST:-alelt.example.internal}' https://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    networks:
+      frontend: {}
+      backend: { ipv4_address: 172.31.250.10 }     # = ALELT_TRUSTED_PROXIES
+    logging: *logging
+
+  prometheus:
+    image: prom/prometheus:v3.1.0@sha256:6559acbd5d770b15bb3c954629ce190ac3cbbdb2b7f1c30f0385c4e05104e218
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+      - --web.listen-address=0.0.0.0:9090
+    ports:
+      - "127.0.0.1:9090:9090"      # host-local only; reach via SSH tunnel / Bastion
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prom_data:/prometheus
+    networks: [backend, monitoring]
+    logging: *logging
+
+  alertmanager:
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ${ALELT_SECRETS_DIR:-/etc/alelt/secrets}/teams_webhook_url:/etc/alertmanager/secrets/teams_webhook_url:ro
+      - ${ALELT_SECRETS_DIR:-/etc/alelt/secrets}/smtp_password:/etc/alertmanager/secrets/smtp_password:ro
+      - am_data:/alertmanager
+    networks: [backend, monitoring]   # monitoring = egress for Teams/SMTP
+    logging: *logging
+
+  pg-backup:
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${ALELT_DB_USER:-alelt_hub}
+      PGDATABASE: ${ALELT_DB_NAME:-alelt}
+      ALELT_BACKUP_KEEP_DAYS: ${ALELT_BACKUP_KEEP_DAYS:-14}
+      ALELT_BACKUP_AT: ${ALELT_BACKUP_AT:-02:30}
+    entrypoint: ["/bin/bash", "/backup/pg_dump_loop.sh"]
+    secrets: [pg_password]
+    group_add: ["${ALELT_SECRETS_GID:-10001}"]   # read 0440 secret files (DEP-24)
+    volumes:
+      - ./backup:/backup:ro
+      - backups:/var/backups/alelt
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [backend]
+    logging: *logging
+
+networks:
+  frontend: {}
+  monitoring: {}
+  egress: {}
+  backend:
+    internal: true     # Postgres and backups: no route out
+    ipam:
+      config: [{ subnet: 172.31.250.0/24 }]
+
+volumes:
+  pg_data:
+    driver: local
+    driver_opts: { type: none, o: bind, device: "${ALELT_PG_DISK:-/data/pg}/data" }
+  pg_wal_archive:
+    driver: local
+    driver_opts: { type: none, o: bind, device: "${ALELT_BACKUP_DISK:-/data/backup}/wal" }
+  spool:
+    driver: local
+    driver_opts: { type: none, o: bind, device: "${ALELT_SPOOL_DISK:-/data/spool}" }
+  backups:
+    driver: local
+    driver_opts: { type: none, o: bind, device: "${ALELT_BACKUP_DISK:-/data/backup}/dumps" }
+  prom_data: {}
+  am_data: {}
+
+secrets:
+  pg_password:
+    file: ${ALELT_SECRETS_DIR:-/etc/alelt/secrets}/pg_password
+  alelt_db_url:
+    file: ${ALELT_SECRETS_DIR:-/etc/alelt/secrets}/alelt_db_url
+  dest_private_key:
+    file: ${ALELT_SECRETS_DIR:-/etc/alelt/secrets}/dest_private_key.p8

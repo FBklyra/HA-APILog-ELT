@@ -1,0 +1,23 @@
+# Canonical type -> ClickHouse physical type (alelt_dst_clickhouse). Nullable() is added by the plugin for nullable columns.
+engine: clickhouse
+types:
+  BOOLEAN: Bool
+  SHORT: Int16
+  INT: Int32
+  LONG: Int64
+  DECIMAL: Decimal({p},{s})
+  FLOAT: Float32
+  DOUBLE: Float64
+  LOCALDATE: Date32
+  LOCALTIME: String          # no TIME type in older servers; ISO text HH:MM:SS[.ffffff]
+  LOCALDATETIME: DateTime64(6, 'UTC')   # wall clock stored in a UTC column (no host-time-zone shift)
+  INSTANT: DateTime64(6, 'UTC')
+  STRING: String
+  BINARY: String             # raw bytes
+  JSON: String
+  XML: String
+  UNKNOWN: null
+defaults:
+  DECIMAL_without_precision: Decimal(38,0)
+limits:
+  DECIMAL_max_precision: 76

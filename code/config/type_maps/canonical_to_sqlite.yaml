@@ -1,0 +1,22 @@
+# Canonical type -> SQLite declared type (dialect sqlite). Values: DECIMAL as exact text, dates/times as ISO-8601 text.
+engine: sqlite
+types:
+  BOOLEAN: integer
+  SHORT: integer
+  INT: integer
+  LONG: integer
+  DECIMAL: text
+  FLOAT: real
+  DOUBLE: real
+  LOCALDATE: text
+  LOCALTIME: text
+  LOCALDATETIME: text
+  INSTANT: text
+  STRING: text
+  BINARY: blob
+  JSON: text
+  XML: text
+  UNKNOWN: null
+defaults:
+  STRING_without_length: text
+  DECIMAL_without_precision: text

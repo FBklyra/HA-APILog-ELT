@@ -1,0 +1,31 @@
+# Canonical type -> MySQL 8/9 (also TiDB) physical type (generic SQL destination, dialect mysql).
+# Placeholders: {p} precision, {s} scale, {n} length. Used only when no golden DDL exists (R8).
+engine: mysql
+types:
+  BOOLEAN: tinyint(1)
+  SHORT: smallint
+  INT: int
+  LONG: bigint
+  DECIMAL: decimal({p},{s})
+  FLOAT: float
+  DOUBLE: double
+  LOCALDATE: date
+  LOCALTIME: time(6)
+  LOCALDATETIME: datetime(6)
+  INSTANT: datetime(6)          # stored as UTC (no zoned type)
+  STRING: varchar({n})
+  BINARY: varbinary({n})
+  JSON: json
+  XML: longtext
+  UNKNOWN: null
+defaults:
+  STRING_without_length: longtext
+  STRING_over_max: longtext
+  BINARY_without_length: longblob
+  BINARY_over_max: longblob
+  DECIMAL_without_precision: decimal(65,10)
+  DECIMAL_over_max: decimal(65,10)
+limits:
+  max_varchar: 4000              # row size limit 65535 bytes; longer strings go to longtext
+  max_varbinary: 8000
+  max_decimal_precision: 65

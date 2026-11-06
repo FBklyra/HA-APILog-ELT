@@ -1,0 +1,47 @@
+{
+ "name": "aleltagent.exe + mock source plugin vs mock_hub",
+ "status": "PASS",
+ "checks": [
+  {
+   "name": "source down: PROBE/CATALOG acked ok:false, DB2_AUTH_FAILED clean",
+   "status": "PASS",
+   "detail": "{\"code\": \"SOURCE_ERROR\", \"message\": \"source unavailable: SQL30082N Security processing failed with reason \\\"24\\\" \\u0001\\u007f\\u00e9 (\\\"USERNAME AND/OR PASSWORD INVALID\\\")\"}"
+  },
+  {
+   "name": "capture interleaved with a slow snapshot; governor pauses + releases it (AHS-06)",
+   "status": "PASS",
+   "detail": "9 chunks over 19.2s, 7 batches meanwhile, paused >= 6 s"
+  },
+  {
+   "name": "VERIFY_TABLE through the plugin ABI 2",
+   "status": "PASS",
+   "detail": ""
+  },
+  {
+   "name": "plugin chunk key > ALELT_MAX_KEYCOLS refused before use (AHS-12)",
+   "status": "PASS",
+   "detail": ""
+  },
+  {
+   "name": "snapshot without a start position refused (AHS-14)",
+   "status": "PASS",
+   "detail": "{\"code\": \"SOURCE_ERROR\", \"message\": \"mock: current log position not available (injected)\"}"
+  },
+  {
+   "name": "batch chain from_pos == previous next_pos",
+   "status": "PASS",
+   "detail": "17 batches, 5431 records"
+  },
+  {
+   "name": "stop aborts in-flight hub requests (AHS-23, console)",
+   "status": "PASS",
+   "detail": "stopped in 5.0s with request_timeout 600 s"
+  },
+  {
+   "name": "--install refuses an invalid config before the SCM (AHS-09)",
+   "status": "PASS",
+   "detail": "service NOT installed: the config is not valid yet (config: hub.client_cert_thumbprint is required in mtls mode). Edit %TEMP%\\alelt-mock-plugin-s5jv7xzn\\install-test\\aleltagent.js"
+  }
+ ],
+ "finished_at": "2026-11-05T18:58:19Z"
+}

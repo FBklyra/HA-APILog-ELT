@@ -1,0 +1,27 @@
+# Swarm overlay (DEP-15): Swarm-only keys, kept out of the plain-compose file (compose ignores most of `deploy:`,
+# Swarm ignores `restart:` / `depends_on` conditions). Use together with the base file and the secrets overlay:
+#   docker stack deploy -c docker-compose.ha.yml -c docker-compose.ha.secrets.yml -c docker-compose.ha.swarm.yml alelt
+# Ordering: Swarm does not honour depends_on - run the migrate service to completion first
+#   (docker stack deploy ... ; docker service logs -f alelt_migrate) before scaling api/worker, or run
+#   `alelt migrate` as a one-off task. The api is never published on the ingress mesh: put your LB on the overlay
+#   network and target `tasks.alelt:8080`. lb/haproxy.cfg discovers up to ALELT_LB_MAX_REPLICAS (16) replicas.
+services:
+  migrate:
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure, max_attempts: 5, delay: 10s }
+  alelt:
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1            # spread: one API replica per host
+      update_config: { parallelism: 1, order: start-first, delay: 10s, failure_action: rollback }
+      rollback_config: { parallelism: 1, order: start-first }
+      restart_policy: { condition: any, delay: 5s }
+  alelt-worker:
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      update_config: { parallelism: 1, order: start-first, delay: 10s }
+      restart_policy: { condition: any, delay: 5s }

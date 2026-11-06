@@ -1,0 +1,173 @@
+# ALELT alert rules. Metric contract: METRICS.md. Routing: alertmanager.yml.
+groups:
+  - name: alelt.capture
+    rules:
+      - alert: AleltCaptureLagAboveTarget
+        expr: |
+          max by (connection_id) (alelt_capture_lag_seconds)
+            > on (connection_id) max by (connection_id) (alelt_latency_target_seconds)
+        for: 10m
+        labels: { severity: warning, team: data }
+        annotations:
+          summary: "Capture lag {{ $value | humanizeDuration }} above target on {{ $labels.connection_id }}"
+          runbook: runbooks/README.md#incidents
+
+      # F-01: a table held / suspect after an unexplained quarantine never converges by waiting
+      - alert: AleltTableOutOfSync
+        expr: |
+          max by (connection_id, table, state) (alelt_table_integrity{state!="IN_SYNC"}) == 1
+        for: 1m
+        labels: { severity: critical, team: data }
+        annotations:
+          summary: "Table {{ $labels.table }} on {{ $labels.connection_id }} is {{ $labels.state }} (held, certification blocked)"
+          runbook: runbooks/README.md#incidents
+
+      # RC4: the decoder falls behind the edge (batches received faster than decoded)
+      - alert: AleltDecodeLag
+        expr: |
+          max by (connection_id) (alelt_decode_lag_seconds) > 300
+        for: 10m
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Decoder of {{ $labels.connection_id }} is {{ $value | humanizeDuration }} behind the edge"
+          runbook: runbooks/README.md#incidents
+
+      # ADR-013: out-of-row values of a table not completed (agent offline / allow-list / source error)
+      - alert: AleltCompletionStalled
+        expr: |
+          max by (connection_id) (alelt_completion_oldest_seconds) > 600
+        for: 5m
+        labels: { severity: critical, team: data }
+        annotations:
+          summary: "Out-of-row completion on {{ $labels.connection_id }} waits since {{ $value | humanizeDuration }}"
+          runbook: runbooks/README.md#incidents
+
+      # X-129 (release requirement): archive-log retention is owned by the DBA (R3, the hub never touches logs).
+      # alelt_archive_horizon_seconds = retention - how far back the hub may still need to read (capture lag, oldest
+      # open transaction). Retention: console (PUT /api/v1/config/archive-retention/{cid}) or ALELT_ARCHIVE_RETENTION_HOURS.
+      - alert: AleltArchiveRetentionUnknown
+        expr: max by (connection_id) (alelt_archive_retention_seconds) == 0
+        for: 1h
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Archive-log retention not recorded for {{ $labels.connection_id }}: the archive horizon cannot be computed"
+          runbook: runbooks/README.md#incidents
+
+      - alert: AleltArchiveHorizonApproaching
+        expr: |
+          min by (connection_id) (alelt_archive_horizon_seconds)
+            < on (connection_id) 0.5 * max by (connection_id) (alelt_archive_retention_seconds)
+        for: 10m
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Capture is {{ $value | humanizeDuration }} away from the archive-retention horizon on {{ $labels.connection_id }} (half of retention used)"
+          runbook: runbooks/resync-table.md
+
+      - alert: AleltArchiveHorizonCritical
+        expr: |
+          min by (connection_id) (alelt_archive_horizon_seconds)
+            < on (connection_id) 0.2 * max by (connection_id) (alelt_archive_retention_seconds)
+        for: 5m
+        labels: { severity: critical, team: platform }
+        annotations:
+          summary: "Only {{ $value | humanizeDuration }} before archive logs the hub still needs may be recycled on {{ $labels.connection_id }} - ask the DBA to extend retention / restart capture now"
+          runbook: runbooks/resync-table.md
+
+      - alert: AleltArchiveHorizonPassed
+        expr: min by (connection_id) (alelt_archive_horizon_seconds) <= 0
+        for: 1m
+        labels: { severity: critical, team: data }
+        annotations:
+          summary: "Capture on {{ $labels.connection_id }} is behind the archive retention: logs are probably gone - verify and resync"
+          runbook: runbooks/resync-table.md
+
+      - alert: AleltCaptureLost
+        # DATA CAPTURE CHANGES disabled on an in-scope table (catalog snapshot shows capture_enabled=false).
+        expr: alelt_capture_enabled == 0
+        for: 1m
+        labels: { severity: critical, team: data }
+        annotations:
+          summary: "Capture lost (DATA CAPTURE CHANGES off) on {{ $labels.table }}"
+          runbook: runbooks/resync-table.md
+
+      - alert: AleltAgentOffline
+        expr: time() - max by (agent_id) (alelt_agent_last_heartbeat_timestamp_seconds) > 300
+        for: 1m
+        labels: { severity: critical, team: platform }
+        annotations:
+          summary: "Agent {{ $labels.agent_id }} silent for {{ $value | humanizeDuration }}"
+          runbook: runbooks/kill-switch.md
+
+      - alert: AleltSpoolAbove70Pct
+        expr: max by (location, agent_id) (alelt_spool_bytes / alelt_spool_capacity_bytes) > 0.70
+        for: 5m
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Spool {{ $labels.location }} at {{ $value | humanizePercentage }}"
+
+  - name: alelt.quality
+    rules:
+      - alert: AleltReconMismatch
+        expr: increase(alelt_recon_mismatch_total[1h]) > 0
+        labels: { severity: critical, team: data }
+        annotations:
+          summary: "Reconciliation mismatch on {{ $labels.table }} ({{ $labels.check }})"
+          runbook: runbooks/reprocess-range.md
+
+      - alert: AleltQuarantineGrowing
+        expr: increase(alelt_quarantine_total[15m]) > 0
+        labels: { severity: warning, team: data }
+        annotations:
+          summary: "{{ $value }} record(s) quarantined on {{ $labels.table }} ({{ $labels.reason }})"
+          runbook: runbooks/ai-incident-diagnosis.md
+
+      - alert: AleltLatencyP95AboveTarget
+        expr: |
+          max by (table) (alelt_latency_p95_seconds)
+            > on () group_left max (alelt_latency_target_seconds)
+        for: 30m
+        labels: { severity: warning, team: data }
+        annotations:
+          summary: "p95 latency {{ $value | humanizeDuration }} above target on {{ $labels.table }}"
+
+  - name: alelt.platform
+    rules:
+      - alert: AleltAgentCrlExpiring
+        # DEP-26: nginx `ssl_crl` rejects EVERY agent once the CRL passes nextUpdate (secrets/fetch-secrets.sh exports it)
+        expr: alelt_agent_crl_next_update_timestamp_seconds - time() < 3 * 86400
+        for: 15m
+        labels: { severity: critical }
+        annotations:
+          summary: "Agent CA CRL expires in < 3 days: publish a fresh CRL and re-run fetch-secrets.sh"
+      - alert: AleltCertExpiring30d
+        expr: (alelt_cert_expiry_timestamp_seconds - time()) < 30 * 86400
+        for: 1h
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Certificate {{ $labels.subject }} ({{ $labels.kind }}) expires in {{ $value | humanizeDuration }}"
+          runbook: runbooks/rotate-certs-keys.md
+
+      - alert: AleltAgentCredentialExpiring
+        expr: (min by (agent_id) (alelt_agent_credential_expiry_timestamp_seconds) - time()) < 7 * 86400
+        for: 1h
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Agent {{ $labels.agent_id }} credential expires in < 7 days (agent rotates it; else re-enroll)"
+          runbook: deploy/UPGRADE.md#credentials
+
+      - alert: AleltConfigFileDrift
+        expr: max by (connection_id) (alelt_config_file_drift) == 1
+        for: 30m
+        labels: { severity: info, team: data }
+        annotations:
+          summary: "tables.yaml for {{ $labels.connection_id }} differs from the active config revision (not applied: alelt config import / diff)"
+          runbook: docs/adr/ADR-008.md
+
+      - alert: AleltHubDown
+        expr: up{job="hub-api"} == 0
+        for: 2m
+        labels: { severity: critical, team: platform }
+        annotations:
+          summary: "Hub API not scraped for 2 min"
+          runbook: runbooks/dr-rebuild-hub.md
+

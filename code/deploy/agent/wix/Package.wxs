@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ALELT Agent MSI (WiX Toolset v4). SPDX-License-Identifier: Apache-2.0
+
+  Build (from deploy/agent/wix):
+    wix extension add -g WixToolset.Util.wixext
+    wix build Package.wxs -arch x64 -ext WixToolset.Util.wixext -d BinDir=<cmake build>\bin -o ALELTAgent.msi
+
+  Install (elevated):
+    msiexec /i ALELTAgent.msi /qn HUBURL=https://hub:8443 AGENTID=edge-01 CONNECTIONID=erp ^
+      CERTTHUMBPRINT=<sha1> HUBPIN=<sha256 spki> DATABASE=<DATABASE> SPOOLDIR=E:\ALELT\spool ^
+      SERVICEACCOUNT=CORP\svc-alelt$ [SERVICEPASSWORD=...]   (gMSA: no password)
+
+  Upgrade: MajorUpgrade replaces binaries only. aleltagent.json, devtoken.bin, the spool
+  (batches + state.json with durable/next positions) and logs live under
+  %ProgramData%\ALELT\Agent and are never installed or removed by the MSI.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="ALELT Agent"
+           Manufacturer="Freddy Beltran"
+           Version="0.1.0.0"
+           UpgradeCode="6E2B8F3A-5C71-4D0E-9A44-0F1C7B9D2E61"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer ALELT Agent is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Installer properties (pass on the msiexec command line) -->
+    <Property Id="HUBURL" Secure="yes" />
+    <Property Id="AGENTID" Secure="yes" />
+    <Property Id="CONNECTIONID" Secure="yes" Value="erp" />
+    <Property Id="CERTTHUMBPRINT" Secure="yes" />
+    <Property Id="HUBPIN" Secure="yes" />
+    <Property Id="DATABASE" Secure="yes" />
+    <Property Id="HUBMODE" Secure="yes" Value="mtls" />
+    <Property Id="SPOOLDIR" Secure="yes" />
+    <Property Id="SERVICEACCOUNT" Secure="yes" Value="NT SERVICE\ALELTAgent" />
+    <Property Id="SERVICEPASSWORD" Secure="yes" Hidden="yes" />
+    <SetProperty Id="CONFIGFILE" Value="[CommonAppDataFolder]ALELT\Agent\aleltagent.json" Before="CostFinalize" Sequence="both" />
+
+    <Launch Condition="Installed OR HUBURL" Message="HUBURL is required." />
+    <Launch Condition="Installed OR AGENTID" Message="AGENTID is required." />
+    <Launch Condition="Installed OR DATABASE" Message="DATABASE (Db2 alias) is required." />
+    <Launch Condition="VersionNT64" Message="ALELT Agent requires 64-bit Windows." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="VENDORDIR" Name="ALELT">
+        <Directory Id="INSTALLFOLDER" Name="Agent" />
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="AgentFiles" Directory="INSTALLFOLDER">
+      <Component Id="AleltAgentExe" Guid="A0C4D6F1-2B3E-4C5D-8E9F-1A2B3C4D5E61">
+        <File Id="aleltagent.exe" Source="$(var.BinDir)\aleltagent.exe" KeyPath="yes" />
+        <ServiceInstall Id="AleltAgentSvc"
+                        Name="ALELTAgent"
+                        DisplayName="ALELT Agent"
+                        Description="ALELT CDC edge agent: reads the database log read-only and ships raw batches to the ALELT hub over outbound HTTPS. No listening ports."
+                        Type="ownProcess" Start="auto" ErrorControl="normal"
+                        Account="[SERVICEACCOUNT]" Password="[SERVICEPASSWORD]"
+                        Arguments="--service --config &quot;[CONFIGFILE]&quot;"
+                        Vital="yes">
+          <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
+          <util:ServiceConfig FirstFailureActionType="restart"
+                              SecondFailureActionType="restart"
+                              ThirdFailureActionType="restart"
+                              RestartServiceDelayInSeconds="60"
+                              ResetPeriodInDays="1" />
+        </ServiceInstall>
+        <ServiceControl Id="AleltAgentSvcCtl" Name="ALELTAgent" Stop="both" Remove="uninstall" Wait="yes" />
+      </Component>
+      <Component Id="AleltSrcDb2" Guid="B1D5E7A2-3C4F-4D6E-9F0A-2B3C4D5E6F72">
+        <File Id="aleltsrc_db2.dll" Source="$(var.BinDir)\aleltsrc_db2.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="AleltScripts" Guid="C2E6F8B3-4D5A-4E7F-8A1B-3C4D5E6F7A83">
+        <File Id="verify_agent.ps1" Source="..\scripts\verify-agent.ps1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Starter config (never overwrites an existing one), then ACLs + logon right + Event Log source. -->
+    <SetProperty Id="AleltInitConfig" Sequence="execute" Before="AleltInitConfig"
+                 Value="&quot;[INSTALLFOLDER]aleltagent.exe&quot; --init-config --config &quot;[CONFIGFILE]&quot; --hub-url &quot;[HUBURL]&quot; --agent-id &quot;[AGENTID]&quot; --connection-id &quot;[CONNECTIONID]&quot; --thumbprint &quot;[CERTTHUMBPRINT]&quot; --pin &quot;[HUBPIN]&quot; --database &quot;[DATABASE]&quot; --mode &quot;[HUBMODE]&quot; --spool-dir &quot;[SPOOLDIR]&quot;" />
+    <CustomAction Id="AleltInitConfig" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+
+    <SetProperty Id="AleltPostInstall" Sequence="execute" Before="AleltPostInstall"
+                 Value="&quot;[INSTALLFOLDER]aleltagent.exe&quot; --post-install --account &quot;[SERVICEACCOUNT]&quot; --config &quot;[CONFIGFILE]&quot;" />
+    <!-- DEP-23: ACLs / logon right / Event Log source are security controls: a failure fails (and rolls back) the
+         install instead of leaving the data dir with inherited Users read. WixQuietExec logs the CA output to the MSI log. -->
+    <CustomAction Id="AleltPostInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="AleltInitConfig" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="AleltPostInstall" After="AleltInitConfig" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
+
+    <Feature Id="Main" Title="ALELT Agent" Level="1">
+      <ComponentGroupRef Id="AgentFiles" />
+    </Feature>
+
+    <!-- Code signing hook: sign aleltagent.exe, aleltsrc_db2.dll and the MSI with signtool
+         (see deploy/agent/README.md) before distribution. -->
+  </Package>
+</Wix>

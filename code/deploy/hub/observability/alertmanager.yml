@@ -1,0 +1,44 @@
+# Routing to the IT on-call channel. Secrets are files materialised from Key Vault (secrets/fetch-secrets.sh).
+# Edit the addresses below at install time (not secrets).
+global:
+  resolve_timeout: 10m
+  smtp_smarthost: "smtp.example.internal:587"
+  smtp_from: "alelt-alerts@example.com"
+  smtp_auth_username: "alelt-alerts@example.com"
+  smtp_auth_password_file: /etc/alertmanager/secrets/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: platform-oncall
+  group_by: [alertname, connection_id, table]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: [ 'team="data"' ]
+      receiver: data-team
+    - matchers: [ 'severity="critical"' ]
+      receiver: platform-oncall
+      repeat_interval: 1h
+
+inhibit_rules:
+  # Hub down hides everything that depends on hub metrics.
+  - source_matchers: [ 'alertname="AleltHubDown"' ]
+    target_matchers: [ 'alertname=~"AleltCapture.*|AleltAgentOffline|AleltLatency.*"' ]
+
+receivers:
+  - name: platform-oncall
+    msteams_configs:
+      - webhook_url_file: /etc/alertmanager/secrets/teams_webhook_url
+        send_resolved: true
+    email_configs:
+      - to: "it-oncall@example.com"
+        send_resolved: true
+
+  - name: data-team
+    msteams_configs:
+      - webhook_url_file: /etc/alertmanager/secrets/teams_webhook_url
+        send_resolved: true
+    email_configs:
+      - to: "data-team@example.com, it-oncall@example.com"
+        send_resolved: true

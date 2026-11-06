@@ -1,0 +1,187 @@
+# ALELT reference release pipeline (GitLab CI). Copy to the repository root as .gitlab-ci.yml in your fork.
+# Public release = linux/amd64 image + x64 Windows agent + x64 Linux daemon. arm64 = optional test build only
+# (TEST_ARM64=1), never pushed.
+# Registry-neutral: REGISTRY / IMAGE_NAMESPACE / REGISTRY_USER / REGISTRY_PASSWORD (defaults: GitLab registry).
+# Signing: keyless cosign via GitLab OIDC (id_tokens SIGSTORE_ID_TOKEN) by default; set masked file variable
+# COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) to sign with a key. Windows job needs a runner tagged `windows` with
+# Visual Studio C++ x64 tools (+ .NET SDK for WiX). SPDX-License-Identifier: Apache-2.0
+
+stages: [test, build, scan, sign, release]
+
+variables:
+  REGISTRY: "${CI_REGISTRY}"
+  IMAGE_NAMESPACE: "${CI_PROJECT_NAMESPACE}"
+  IMAGE: "${REGISTRY}/${IMAGE_NAMESPACE}/alelt"
+  VERSION: "${CI_COMMIT_TAG}"
+  TEST_ARM64: "0"
+  # DEP-08: every downloaded tool is verified against the sha256 published with its release (pinned here; bump the
+  # version AND the sum together). trivy v0.58.1 assets are gone upstream (404) -> v0.69.3.
+  SYFT_VERSION: "v1.18.1"
+  SYFT_SHA256: "066c251652221e4d44fcc4d115ce3df33a91769da38c830a8533199db2f65aab"   # syft_1.18.1_linux_amd64.tar.gz
+  TRIVY_VERSION: "0.69.3"
+  TRIVY_SHA256: "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75"  # trivy_0.69.3_Linux-64bit.tar.gz
+  COSIGN_VERSION: "v2.4.1"
+  COSIGN_SHA256: "8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b" # cosign-linux-amd64
+  HELM_VERSION: "v3.16.2"
+  HELM_SHA256: "9318379b847e333460d33d291d4c088156299a26cd93d570a7f5d0c36e50b5bb"   # helm-v3.16.2-linux-amd64.tar.gz
+  # job images by digest (DEP-05/08)
+  DOCKER_IMAGE: "docker:27.3.1@sha256:6ca9a6811085e2cf769cbac04bc47daf66629102990391caab7cf37426e939da"
+  DIND_IMAGE: "docker:27.3.1-dind@sha256:6ca9a6811085e2cf769cbac04bc47daf66629102990391caab7cf37426e939da"
+  BINFMT_IMAGE: "tonistiigi/binfmt:qemu-v8.1.5@sha256:2d2918e86e5327d0661f7083d67a95280b0f7be8f77ed79a8418f81d7d90ce6f"
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+      variables: { VERSION: "${CI_COMMIT_TAG}" }
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+.version: &version |
+  VERSION="${VERSION#v}"; [ -n "$VERSION" ] || VERSION="0.0.0-dev.${CI_PIPELINE_IID}"
+  echo "version $VERSION"
+
+# fetch <url> <sha256> <out>: download, verify, fail closed (DEP-08)
+.fetch: &fetch |
+  fetch() { curl -sSfL -o "$3" "$1" && echo "$2  $3" | sha256sum -c - || { echo "checksum mismatch for $1" >&2; exit 1; }; }
+
+.publish_rules: &publish_rules
+  - if: $CI_COMMIT_TAG
+
+test:python:
+  stage: test
+  image: python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337
+  services:
+    - name: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+      alias: pg
+  variables:
+    POSTGRES_USER: ci
+    POSTGRES_PASSWORD: ci-only-password
+    ALELT_TEST_PG_URL: "postgresql://ci:ci-only-password@pg:5432"
+    PYTHONPATH: "hub:connectors/sources/db2:connectors/sources/postgres:connectors/destinations/postgres"
+    ALELT_ENV: dev
+  script:
+    - pip install -q --require-hashes --no-deps -r deploy/image/requirements-ci.lock && pip check
+    - python -m pytest -q hub
+    - if [ -d edge-agent/linux/tests ]; then PYTHONPATH=hub:edge-agent/linux python -m pytest -q edge-agent/linux/tests; fi
+
+test:console:
+  stage: test
+  image: node:22.11.0-bookworm-slim@sha256:f035ba7ffee18f67200e2eb8018e0f13c954ec16338f264940f701997e3c12da
+  script:
+    - cd console && npm ci
+    - node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json
+    - node node_modules/vitest/vitest.mjs run
+    - node node_modules/vite/bin/vite.js build
+
+test:decoder:
+  stage: test
+  image: debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
+  script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends cmake make gcc libc6-dev >/dev/null
+    - cmake -S connectors/sources/db2/decoder -B build/decoder -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build/decoder -j"$(nproc)"
+    - ctest --test-dir build/decoder --output-on-failure
+
+build:agent-windows:
+  stage: build
+  tags: [windows]
+  script:
+    - pwsh -NoProfile -Command "./edge-agent/core/build.ps1 -Preset x64-release"
+    - pwsh -NoProfile -Command "if (-not (Get-Command wix -ErrorAction SilentlyContinue)) { dotnet tool install --global wix --version 4.0.6; wix extension add -g WixToolset.Util.wixext/4.0.6 }"
+    - pwsh -NoProfile -Command "$v = '$env:VERSION'.TrimStart('v'); if (-not $v) { $v = '0.0.0-dev.$env:CI_PIPELINE_IID' }; ./deploy/release/build-release.ps1 -Version $v -SkipImages -AgentOnly -OutRoot out; Copy-Item out/$v/*windows-x64.* ."
+  artifacts:
+    paths: ["*windows-x64.zip", "*windows-x64.msi"]
+    expire_in: 7 days
+
+build:image:
+  stage: build
+  image: ${DOCKER_IMAGE}
+  services: ["${DIND_IMAGE}"]
+  variables: { DOCKER_TLS_CERTDIR: "/certs" }
+  script:
+    - *version
+    - docker buildx create --use --name alelt
+    - if [ "$TEST_ARM64" = 1 ]; then docker run --privileged --rm "$BINFMT_IMAGE" --install arm64; docker buildx build --platform linux/arm64 -f deploy/image/Dockerfile .; fi
+    - docker buildx build --platform linux/amd64 --target verify -f deploy/image/Dockerfile .
+    - docker buildx build --platform linux/amd64 -f deploy/image/Dockerfile --build-arg ALELT_BUILD_VERSION=$VERSION --build-arg ALELT_BUILD_REVISION=$CI_COMMIT_SHA -t "$IMAGE:$VERSION" --load .
+    - mkdir -p out && docker save "$IMAGE:$VERSION" -o "out/alelt-$VERSION-linux-amd64.image.tar"
+  artifacts:
+    paths: [out/]
+    expire_in: 7 days
+
+scan:image:
+  stage: scan
+  image: ${DOCKER_IMAGE}
+  needs: [build:image]
+  script:
+    - *version
+    - apk add --no-cache curl >/dev/null
+    - *fetch
+    - fetch "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" "$SYFT_SHA256" /tmp/syft.tgz && tar -xzf /tmp/syft.tgz -C /usr/local/bin syft
+    - fetch "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" "$TRIVY_SHA256" /tmp/trivy.tgz && tar -xzf /tmp/trivy.tgz -C /usr/local/bin trivy
+    - syft "docker-archive:out/alelt-$VERSION-linux-amd64.image.tar" -o "spdx-json=out/alelt-$VERSION.sbom.spdx.json"
+    - trivy image --input "out/alelt-$VERSION-linux-amd64.image.tar" --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+  artifacts:
+    paths: [out/]
+    expire_in: 7 days
+
+push-sign:image:
+  stage: sign
+  image: ${DOCKER_IMAGE}
+  services: ["${DIND_IMAGE}"]
+  variables: { DOCKER_TLS_CERTDIR: "/certs" }
+  needs: [scan:image]
+  rules: *publish_rules
+  id_tokens:
+    SIGSTORE_ID_TOKEN: { aud: sigstore }
+  script:
+    - *version
+    - apk add --no-cache curl >/dev/null
+    - *fetch
+    - fetch "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" "$COSIGN_SHA256" /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
+    - echo "${REGISTRY_PASSWORD:-$CI_REGISTRY_PASSWORD}" | docker login "$REGISTRY" -u "${REGISTRY_USER:-$CI_REGISTRY_USER}" --password-stdin
+    - docker load -i "out/alelt-$VERSION-linux-amd64.image.tar"
+    - docker push "$IMAGE:$VERSION"
+    - REF=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION")
+    - |
+      if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
+        cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$REF"
+        cosign attest --yes --key env://COSIGN_PRIVATE_KEY --type spdxjson --predicate "out/alelt-$VERSION.sbom.spdx.json" "$REF"
+      else
+        cosign sign --yes "$REF"
+        cosign attest --yes --type spdxjson --predicate "out/alelt-$VERSION.sbom.spdx.json" "$REF"
+      fi
+
+release:bundle:
+  stage: release
+  image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+  needs: [scan:image, build:agent-windows]
+  script:
+    - *version
+    - apk add --no-cache coreutils tar curl >/dev/null
+    - *fetch
+    - fetch "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" "$HELM_SHA256" /tmp/helm.tgz && tar -xzf /tmp/helm.tgz -C /tmp && mv /tmp/linux-amd64/helm /usr/local/bin/
+    - zip=$(ls *windows-x64.zip | head -1)
+    - sh deploy/release/build-release.sh --version "$VERSION" --skip-images --agent-zip "$zip" --out-root rel
+    - cp *windows-x64.msi "rel/$VERSION/" 2>/dev/null || true
+    - cp out/* "rel/$VERSION/"
+    - cd "rel/$VERSION" && find . -maxdepth 1 -type f ! -name SHA256SUMS | sed 's#^\./##' | sort | xargs sha256sum > SHA256SUMS && cat SHA256SUMS
+  artifacts:
+    name: "alelt-$CI_COMMIT_REF_SLUG"
+    paths: [rel/]
+    expire_in: 30 days
+
+release:publish:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:v0.20.0@sha256:0cc9957c237cafd4bb6dc553c879a811787ccbc6bbf21d64fd7a5849a8d633ae
+  needs: [release:bundle, push-sign:image]
+  rules: *publish_rules
+  script:
+    - echo "release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "ALELT $CI_COMMIT_TAG"
+    description: "See RELEASE-NOTES.md and SHA256SUMS in the job artifacts (release:bundle)."
+    assets:
+      links:
+        - name: release bundle (artifacts)
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/browse/rel?job=release:bundle"

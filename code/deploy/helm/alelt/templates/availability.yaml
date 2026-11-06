@@ -1,0 +1,48 @@
+{{- if and (eq .Values.mode "ha") .Values.podDisruptionBudget.enabled }}
+{{- range $c := list "api" "worker" }}
+{{- if gt (int (index $.Values $c).replicas) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "alelt.fullname" $ }}-{{ $c }}
+  labels: {{- include "alelt.labels" $ | nindent 4 }}
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels: {{- include "alelt.selector" (dict "root" $ "component" $c) | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.serviceAccount.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "alelt.serviceAccountName" . }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+automountServiceAccountToken: false
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+# Ingress only to the api port (+ metrics); egress stays open (Postgres, S3, destination, IdP are site-specific).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "alelt.fullname" . }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ include "alelt.name" . }}
+  policyTypes: [Ingress]
+  ingress:
+    - from: {{- toYaml .Values.networkPolicy.ingressFrom | nindent 8 }}
+      ports:
+        - { port: {{ .Values.api.port }} }
+        - { port: {{ .Values.worker.metricsPort }} }
+{{- end }}

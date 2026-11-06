@@ -1,0 +1,216 @@
+name: ci
+
+# Actions pinned to commit SHAs (DEP-07; tag in the trailing comment, bumped by Dependabot: .github/dependabot.yml).
+# Python deps only from the hashed lock deploy/image/requirements-ci.lock (DEP-04). An empty test collection fails (DEP-29).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run console Playwright E2E"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-windows:
+    name: C build + tests (Windows, MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      - name: Agent (preset build + ctest)
+        shell: pwsh
+        run: ./edge-agent/core/build.ps1 -Preset x64-release
+      - name: Db2 decoder + plugin (CMake + ctest)
+        shell: pwsh
+        run: |
+          foreach ($p in @('connectors/sources/db2/decoder', 'connectors/sources/db2')) {
+            if (-not (Test-Path "$p/CMakeLists.txt")) { continue }
+            $b = "build/$($p -replace '[\\/]', '_')"
+            cmake -S $p -B $b -G "Ninja" -DCMAKE_BUILD_TYPE=Release; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            cmake --build $b --parallel; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            ctest --test-dir $b --output-on-failure; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+
+  python:
+    name: Python lint, types, tests (SQLite + PostgreSQL metadata)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      # admin URL without a database: conftest creates throw-away databases (hub on SQLite AND Postgres, landing)
+      ALELT_TEST_PG_URL: postgresql://ci:ci-only-password@localhost:5432
+      ALELT_ENV: dev
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install (hashed lock only)
+        run: python -m pip install --require-hashes --no-deps -r deploy/image/requirements-ci.lock && python -m pip check
+      - name: ruff
+        run: ruff check hub tests/ladder edge-agent/linux
+      - name: mypy --strict
+        run: mypy --strict --ignore-missing-imports hub/alelt_hub hub/alelt_common
+      - name: Hub tests (SQLite + PostgreSQL)
+        env:
+          PYTHONPATH: hub:connectors/sources/db2:connectors/sources/postgres:connectors/destinations/postgres
+        run: python -m pytest -q hub    # rc 5 (nothing collected) fails the job
+      - name: Linux daemon + dev edge tests
+        env:
+          PYTHONPATH: hub:edge-agent/linux:connectors/sources/db2/devedge
+        run: python -m pytest -q edge-agent/linux/tests connectors/sources/db2/devedge/tests
+      - name: Static / ladder-index tests
+        run: python -m pytest -q tests/static
+
+  linux-container-e2e:
+    name: Linux daemon e2e in containers (SIGTERM, restart, resume)
+    runs-on: ubuntu-24.04
+    needs: python
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build product image (amd64, loaded)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/image/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: alelt:ci
+      - name: e2e_container_sigterm
+        run: python3 edge-agent/linux/tests/e2e_container_sigterm.py --image alelt:ci
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: linux-e2e
+          path: edge-agent/linux/tests/result-e2e-container.json
+          retention-days: 7
+
+  deploy-validate:
+    name: Deploy artefacts (compose, Helm, systemd, LB / proxy configs)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+        with:
+          version: v3.16.2
+      - name: docker compose config (every stack + overlay)
+        run: |
+          set -eu
+          export ALELT_SPOOL_URL=s3://ci/prefix ALELT_API_BIND=127.0.0.1
+          ( cd deploy/ha
+            docker compose -f docker-compose.ha.yml config -q
+            docker compose -f docker-compose.ha.yml -f docker-compose.ha.swarm.yml config -q
+            docker compose -f docker-compose.ha.yml -f docker-compose.ha.hostport.yml --profile demo --profile lb config -q )
+          ( cd deploy/local
+            docker compose --env-file .env.example -f docker-compose.yml config -q
+            docker compose --env-file .env.example -f docker-compose.sqlite.yml config -q )
+          ( cd deploy/hub && docker compose --env-file .env.example config -q )
+      - name: helm lint + template (ha, standalone, demo, prod refusal)
+        run: |
+          set -eu
+          c=deploy/helm/alelt
+          base="--set env.ALELT_TRUSTED_PROXIES=10.0.0.0/8 --set externalDatabase.existingSecret=db --set spool.url=s3://b/p --set s3.existingSecret=s3"
+          # shellcheck disable=SC2086
+          helm lint --strict "$c" $base
+          helm template t "$c" -f "$c/values-ha.yaml" --set env.ALELT_TRUSTED_PROXIES=10.0.0.0/8 --set ingress.agentMtls.caSecret=ns/ca >/dev/null
+          helm template t "$c" -f "$c/values-standalone.yaml" >/dev/null
+          helm template t "$c" --set env.ALELT_ENV=demo --set env.ALELT_AGENT_AUTH=token --set demo.postgres.enabled=true --set demo.minio.enabled=true >/dev/null
+          if helm template t "$c" --set env.ALELT_AGENT_AUTH=token --set demo.postgres.enabled=true >/dev/null 2>&1; then
+            echo "::error::ALELT_ENV=prod must refuse chart-rendered credentials (DEP-19)"; exit 1; fi
+      - name: systemd-analyze verify (units in a systemd container)
+        run: |
+          docker run --rm -v "$PWD/deploy/linux:/u:ro" debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 sh -c '
+            set -e; apt-get update -qq && apt-get install -y -qq systemd procps >/dev/null
+            useradd --system alelt; mkdir -p /opt/alelt/venv/bin && ln -s /usr/bin/true /opt/alelt/venv/bin/python
+            mkdir -p /etc/alelt && touch /etc/alelt/hub.env /etc/alelt/agent.env
+            cp /u/*.service /etc/systemd/system/
+            cp /etc/systemd/system/alelt-worker@.service /etc/systemd/system/alelt-worker@1.service
+            chmod 0644 /etc/systemd/system/alelt*.service
+            cd /etc/systemd/system && SYSTEMD_LOG_LEVEL=warning systemd-analyze verify alelt.service alelt-hub.service alelt-worker@1.service alelt-capture.service'
+      - name: install.sh / uninstall.sh syntax
+        run: sh -n deploy/linux/install.sh && sh -n deploy/linux/uninstall.sh && sh -n deploy/release/build-release.sh
+      - name: haproxy -c (demo + mTLS LB)
+        run: |
+          for f in haproxy.cfg haproxy-mtls.cfg; do
+            docker run --rm -e ALELT_LB_STATS_USER=ci -e ALELT_LB_STATS_PASSWORD=ci --add-host alelt:127.0.0.1 \
+              -v "$PWD/deploy/ha/lb:/lb:ro" haproxy:2.9-alpine@sha256:3e29449a6beed63262e36104adf531b4e41b359f61937303f5ea8607987b3748 \
+              haproxy -c -f "/lb/$f" || { if [ "$f" = haproxy-mtls.cfg ]; then echo "::warning::$f references deployment cert files; checked syntax only"; else exit 1; fi; }; done
+      - name: nginx -t (hub front door; throw-away CA, cert and CRL)
+        run: |
+          docker run --rm -v "$PWD/deploy/hub/nginx:/src:ro" --add-host hub-api:127.0.0.1 \
+            nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 sh -ec '
+              apk add -q openssl >/dev/null
+              cp /src/nginx.conf /etc/nginx/nginx.conf; cp /src/alelt-strip-identity.conf /etc/nginx/
+              t=/etc/nginx/tls; mkdir -p $t /tmp/ca; : > /tmp/ca/index.txt; echo 01 > /tmp/ca/crlnumber
+              openssl req -x509 -newkey rsa:2048 -nodes -subj /CN=ci-ca -keyout /tmp/ca/k -out $t/agent-ca.crt -days 1 2>/dev/null
+              openssl req -x509 -newkey rsa:2048 -nodes -subj /CN=ci -keyout $t/server.key -out $t/server.crt -days 1 2>/dev/null
+              printf "[ca]\ndefault_ca=d\n[d]\ndatabase=/tmp/ca/index.txt\ncrlnumber=/tmp/ca/crlnumber\ndefault_md=sha256\ndefault_crl_days=1\n" > /tmp/ca/c.cnf
+              openssl ca -config /tmp/ca/c.cnf -gencrl -keyfile /tmp/ca/k -cert $t/agent-ca.crt -out $t/agent-ca.crl 2>/dev/null
+              nginx -t'
+      - name: Release workflow copy in sync
+        run: diff <(tail -n +3 deploy/ci/github/release.yml) .github/workflows/release.yml
+
+  console:
+    name: Console build + unit tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  console-e2e:
+    name: Console E2E (Playwright, manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+    needs: console
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: playwright-report
+          path: console/playwright-report
+          retention-days: 7

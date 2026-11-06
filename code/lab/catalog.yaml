@@ -1,0 +1,324 @@
+# SPDX-License-Identifier: Apache-2.0
+# Local test lab catalog - SINGLE SOURCE OF TRUTH for lab scripts, lab helper and the admin console.
+# After editing run:  python lab/gen_catalog.py   (writes lab/catalog.json + console/src/lib/labCatalog.generated.ts;
+#                                                  tests fail if they are out of date)
+#
+# availability: image    = an official public image exists -> Pull / Start / Stop / Reset / Create demo pipeline
+#               no_image = cloud-only service -> guidance panel only (free trial / developer edition + Test connection)
+# status (connector maturity in this release): stable | beta | planned
+# arch: image platforms. amd64-only images run under emulation on ARM64 hosts (slow, some may not start);
+#       on x64 hosts everything runs natively.
+# local_fallbacks: `lab up` / `lab pull` use the pinned `image` when present; else the first present tag of `tags`
+#       (compatible local tags, printed); they pull the pinned tag only when none is present. `var` is the compose
+#       override (LAB_IMG_*); a value set in the environment or in lab/.env.local (gitignored) always wins.
+# optional: not part of all / sources; started only when opted in (see the entry's `native` note).
+# Ports 47xxx are outside the usual Windows reserved ranges; `lab up` re-checks them on every start.
+# Fake data only. Passwords below are throw-away lab values, valid only on 127.0.0.1.
+version: 1
+project: alelt-lab
+network: alelt-lab
+helper: { bind: 127.0.0.1, port: 47999 }
+
+profiles:
+  # ------------------------------------------------------------------ sources (image)
+  - id: postgres
+    kind: source
+    engine: postgres
+    label: PostgreSQL 16 (logical decoding, pgoutput)
+    availability: image
+    status: beta
+    images: [postgres:16.8-bookworm]
+    local_fallbacks: [{ var: LAB_IMG_POSTGRES, image: postgres:16.8-bookworm, tags: [postgres:16-bookworm, postgres:16] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-postgres]
+    ports: { sql: 47432 }
+    connection: { host: 127.0.0.1, port: 47432, database: labdb, user: lab, password: lab_local_only, schemas: shop }
+    dsn: postgresql://lab:lab_local_only@127.0.0.1:47432/labdb
+    demo: { source_engine: postgres, schemas: shop }
+
+  - id: mysql
+    kind: source
+    engine: mysql
+    label: MySQL 9 (binlog, ROW, GTID)
+    availability: image
+    status: beta
+    images: [mysql:9.3.0]
+    local_fallbacks: [{ var: LAB_IMG_MYSQL, image: mysql:9.3.0, tags: [mysql:9.3, mysql:9] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-mysql]
+    ports: { sql: 47306 }
+    connection: { host: 127.0.0.1, port: 47306, database: shop, user: root, password: lab_local_only, schemas: shop }
+    dsn: mysql://root:lab_local_only@127.0.0.1:47306/shop
+    demo: { source_engine: mysql, schemas: shop }
+
+  - id: mariadb
+    kind: source
+    engine: mariadb
+    label: MariaDB 11.4 LTS (binlog, ROW)
+    availability: image
+    status: beta
+    images: [mariadb:11.4.5]
+    local_fallbacks: [{ var: LAB_IMG_MARIADB, image: mariadb:11.4.5, tags: [mariadb:11.4, mariadb:11, mariadb:latest] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-mariadb]
+    ports: { sql: 47307 }
+    connection: { host: 127.0.0.1, port: 47307, database: shop, user: root, password: lab_local_only, schemas: shop }
+    dsn: mysql://root:lab_local_only@127.0.0.1:47307/shop
+    demo: { source_engine: mariadb, schemas: shop }
+
+  - id: sqlserver
+    kind: source
+    engine: sqlserver
+    label: SQL Server 2022 Developer (CDC)
+    availability: image
+    status: beta
+    images: [mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04]
+    local_fallbacks: [{ var: LAB_IMG_SQLSERVER, image: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04", tags: ["mcr.microsoft.com/mssql/server:2022-latest", "mcr.microsoft.com/azure-sql-edge:latest"] }]
+    arch: [amd64]
+    services: [alelt-lab-sqlserver]
+    ports: { sql: 47143 }
+    connection: { host: 127.0.0.1, port: 47143, database: labdb, user: sa, password: Lab_local_only1, schemas: shop }
+    dsn: mssql://sa:Lab_local_only1@127.0.0.1:47143/labdb
+    demo: { source_engine: sqlserver, schemas: shop }
+    notes: amd64 only (emulated on ARM64, may fail to start there). Developer edition, free for non-production use. SQL Server Agent is enabled for CDC capture jobs.
+
+  - id: oracle
+    kind: source
+    engine: oracle
+    label: Oracle Database 23ai Free (LogMiner)
+    availability: image
+    status: planned
+    images: [container-registry.oracle.com/database/free:23.7.0.0-lite]
+    local_fallbacks: [{ var: LAB_IMG_ORACLE, image: "container-registry.oracle.com/database/free:23.7.0.0-lite", tags: ["container-registry.oracle.com/database/free:latest-lite", "gvenzl/oracle-free:23-slim"] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-oracle]
+    ports: { sql: 47521 }
+    connection: { host: 127.0.0.1, port: 47521, database: FREEPDB1, user: system, password: lab_local_only, schemas: SHOP }
+    dsn: oracle://system:lab_local_only@127.0.0.1:47521/FREEPDB1
+    demo: { source_engine: oracle, schemas: SHOP }
+    notes: Large image, first start takes several minutes. The lab init script enables ARCHIVELOG and supplemental logging (lab database only). Oracle Free licence terms apply.
+
+  - id: db2
+    kind: source
+    engine: db2
+    label: IBM Db2 Community Edition (db2ReadLog)
+    availability: image
+    status: beta
+    images: [icr.io/db2_community/db2:12.1.2.0]
+    arch: [amd64]
+    privileged: true
+    optional: true      # skipped by all/sources and by `up` unless LAB_DB2_CONTAINER=1 (x64 hosts)
+    native: Optional. Install Db2 Community natively (recommended; capture runs next to it) or use this image on x64 hosts with LAB_DB2_CONTAINER=1. Machines with a native Db2 use it as the lab Db2 source; the container is not started.
+    services: [alelt-lab-db2]
+    ports: { sql: 47500 }
+    connection: { host: 127.0.0.1, port: 47500, database: LABDB, user: db2inst1, password: lab_local_only, schemas: SHOP }
+    dsn: db2://db2inst1:lab_local_only@127.0.0.1:47500/LABDB
+    notes: amd64 only and needs --privileged (IBM requirement for this image). First start takes 5-10 minutes. Capture uses the edge agent (db2ReadLog) running next to Db2; the lab container is for snapshot / catalog tests and agent development. Db2 Community Edition licence terms apply.
+
+  # ------------------------------------------------------------------ targets (image)
+  - id: landing
+    kind: target
+    engine: postgres
+    label: PostgreSQL landing (default target)
+    availability: image
+    status: beta
+    images: [postgres:16.8-bookworm]
+    local_fallbacks: [{ var: LAB_IMG_POSTGRES, image: postgres:16.8-bookworm, tags: [postgres:16-bookworm, postgres:16] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-landing]
+    ports: { sql: 47442 }
+    connection: { host: 127.0.0.1, port: 47442, database: landing, user: lab, password: lab_local_only }
+    dsn: postgresql://lab:lab_local_only@127.0.0.1:47442/landing
+
+  - id: iceberg
+    kind: target
+    engine: iceberg
+    label: Apache Iceberg (S3 store + REST catalog + Trino)
+    availability: image
+    status: beta
+    images: [chrislusf/seaweedfs:3.85, apache/iceberg-rest-fixture:1.9.1, trinodb/trino:476]
+    local_fallbacks:
+      - { var: LAB_IMG_S3, image: chrislusf/seaweedfs:3.85, tags: [chrislusf/seaweedfs:latest] }
+      - { var: LAB_IMG_ICEBERG_REST, image: apache/iceberg-rest-fixture:1.9.1, tags: [apache/iceberg-rest-fixture:latest] }
+      - { var: LAB_IMG_TRINO, image: trinodb/trino:476, tags: [trinodb/trino:latest] }
+    arch: [amd64, arm64]
+    services: [alelt-lab-s3, alelt-lab-iceberg-rest, alelt-lab-trino]
+    ports: { s3: 47900, rest: 47181, trino: 47808 }
+    connection: { s3_endpoint: "http://127.0.0.1:47900", access_key: lab, secret_key: lab_local_only, bucket: lake, warehouse: "s3://lake/iceberg", rest_catalog: "http://127.0.0.1:47181", trino: "http://127.0.0.1:47808" }
+    dsn: iceberg+rest://127.0.0.1:47181?warehouse=s3://lake/iceberg
+    notes: S3-compatible store = SeaweedFS (Apache-2.0); MinIO community images are no longer published on Docker Hub. Query with Trino (catalog iceberg).
+
+  - id: delta
+    kind: target
+    engine: delta
+    label: Delta Lake tables on the S3 store
+    availability: image
+    status: beta
+    images: [chrislusf/seaweedfs:3.85]
+    local_fallbacks: [{ var: LAB_IMG_S3, image: chrislusf/seaweedfs:3.85, tags: [chrislusf/seaweedfs:latest] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-s3]
+    ports: { s3: 47900 }
+    connection: { s3_endpoint: "http://127.0.0.1:47900", access_key: lab, secret_key: lab_local_only, bucket: lake, path: "s3://lake/delta" }
+    dsn: delta+s3://lake/delta
+    notes: Tables are written by the loader (delta-rs); no Spark container needed. Read them with DuckDB (delta extension) or Spark.
+
+  - id: clickhouse
+    kind: target
+    engine: clickhouse
+    label: ClickHouse
+    availability: image
+    status: beta
+    images: [clickhouse/clickhouse-server:25.3.6.56]
+    local_fallbacks: [{ var: LAB_IMG_CLICKHOUSE, image: clickhouse/clickhouse-server:25.3.6.56, tags: [clickhouse/clickhouse-server:25.3, clickhouse/clickhouse-server:latest] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-clickhouse]
+    ports: { http: 47823, native: 47824 }
+    connection: { host: 127.0.0.1, port: 47823, database: landing, user: lab, password: lab_local_only }
+    dsn: clickhouse://lab:lab_local_only@127.0.0.1:47823/landing
+
+  - id: redpanda
+    kind: target
+    engine: kafka
+    label: Kafka API (Redpanda)
+    availability: image
+    status: beta
+    images: [redpandadata/redpanda:v24.3.7]
+    local_fallbacks: [{ var: LAB_IMG_REDPANDA, image: redpandadata/redpanda:v24.3.7, tags: [redpandadata/redpanda:latest] }]
+    arch: [amd64, arm64]
+    services: [alelt-lab-redpanda]
+    ports: { kafka: 47092, admin: 47644 }
+    connection: { bootstrap: "127.0.0.1:47092" }
+    dsn: kafka://127.0.0.1:47092
+
+  - id: bigquery
+    kind: target
+    engine: bigquery
+    label: BigQuery emulator (local)
+    availability: image
+    status: planned
+    images: [ghcr.io/goccy/bigquery-emulator:0.6.6]
+    local_fallbacks: [{ var: LAB_IMG_BIGQUERY, image: ghcr.io/goccy/bigquery-emulator:0.6.6, tags: [ghcr.io/goccy/bigquery-emulator:latest] }]
+    arch: [amd64]
+    services: [alelt-lab-bigquery]
+    ports: { http: 47050, grpc: 47060 }
+    connection: { endpoint: "http://127.0.0.1:47050", project: lab-project, dataset: landing }
+    dsn: bigquery://lab-project/landing?endpoint=http://127.0.0.1:47050
+    notes: Community emulator, amd64 image (emulated on ARM64). For the real service see the BigQuery sandbox entry.
+
+  - id: files
+    kind: target
+    engine: sql
+    label: DuckDB / SQLite files
+    availability: image
+    status: beta
+    images: []
+    arch: [amd64, arm64]
+    services: []
+    ports: {}
+    connection: { duckdb: lab/data/landing.duckdb, sqlite: lab/data/landing.sqlite }
+    dsn: duckdb:///lab/data/landing.duckdb
+    notes: No container. Files under lab/data/ (created on demand, removed by lab reset).
+
+  # ------------------------------------------------------------------ targets (no local image: guidance only)
+  - id: snowflake
+    kind: target
+    engine: snowflake
+    label: Snowflake
+    availability: no_image
+    status: beta
+    guidance:
+      what: Cloud data warehouse. No local image; use a free trial account.
+      signup_url: https://signup.snowflake.com/
+      docs_url: https://docs.snowflake.com/en/user-guide/key-pair-auth
+      objects:
+        - "Warehouse ALELT_WH (X-SMALL, auto-suspend 60 s)"
+        - "Database + schema for landing, e.g. ALELTTEST.LANDING"
+        - "Role ALELT_LOADER with USAGE on the warehouse and database, CREATE SCHEMA on the database"
+        - "User ALELT_SVC with DEFAULT_ROLE = ALELT_LOADER and an RSA key pair (RSA_PUBLIC_KEY)"
+      form_fields: { account: "<org>-<account>", user: ALELT_SVC, role: ALELT_LOADER, warehouse: ALELT_WH, database: ALELTTEST, private_key_path: /run/secrets/snowflake_key.p8 }
+      test_engine: snowflake
+
+  - id: databricks
+    kind: target
+    engine: databricks
+    label: Databricks (Delta / Unity Catalog)
+    availability: no_image
+    status: planned
+    guidance:
+      what: Lakehouse platform. Locally, use the Delta entry; for the real service use Databricks Free Edition or a trial.
+      signup_url: https://www.databricks.com/learn/free-edition
+      docs_url: https://docs.databricks.com/aws/en/dev-tools/auth/pat
+      objects:
+        - "SQL warehouse (serverless or pro), note its HTTP path"
+        - "Catalog + schema for landing, e.g. alelt_test.landing"
+        - "Service principal or personal access token with USE CATALOG, CREATE TABLE, MODIFY"
+      form_fields: { host: "<workspace>.cloud.databricks.com", http_path: /sql/1.0/warehouses/<id>, catalog: alelt_test, schema: landing, token_ref: "file:databricks_token" }
+      test_engine: databricks
+
+  - id: fabric
+    kind: target
+    engine: fabric
+    label: Microsoft Fabric (Warehouse / Lakehouse)
+    availability: no_image
+    status: planned
+    guidance:
+      what: SaaS analytics platform. No local image; use the Fabric trial capacity.
+      signup_url: https://learn.microsoft.com/en-us/fabric/fundamentals/fabric-trial
+      docs_url: https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivity
+      objects:
+        - "Workspace on the trial capacity"
+        - "Warehouse (T-SQL endpoint) for landing"
+        - "Entra ID app registration (service principal) added to the workspace as Contributor"
+      form_fields: { server: "<id>.datawarehouse.fabric.microsoft.com", database: "<warehouse>", tenant_id: "<tenant>", client_id: "<app id>", client_secret_ref: "file:fabric_secret" }
+      test_engine: fabric
+
+  - id: redshift
+    kind: target
+    engine: redshift
+    label: Amazon Redshift (Serverless)
+    availability: no_image
+    status: planned
+    guidance:
+      what: Cloud data warehouse. No local image; Redshift Serverless offers free-trial credits.
+      signup_url: https://aws.amazon.com/redshift/free-trial/
+      docs_url: https://docs.aws.amazon.com/redshift/latest/mgmt/serverless-connecting.html
+      objects:
+        - "Serverless workgroup + namespace (smallest base capacity)"
+        - "Database user with CREATE on the landing database"
+        - "Security group allowing the hub's egress IP on port 5439"
+      form_fields: { host: "<workgroup>.<account>.<region>.redshift-serverless.amazonaws.com", port: 5439, database: dev, user: alelt_svc, password_ref: "file:redshift_password" }
+      test_engine: redshift
+
+  - id: bigquery-cloud
+    kind: target
+    engine: bigquery
+    label: Google BigQuery (sandbox)
+    availability: no_image
+    status: planned
+    guidance:
+      what: Cloud data warehouse. The BigQuery sandbox is free without a billing account (with limits).
+      signup_url: https://cloud.google.com/bigquery/docs/sandbox
+      docs_url: https://cloud.google.com/bigquery/docs/authentication
+      objects:
+        - "Project with the BigQuery API enabled"
+        - "Dataset for landing, e.g. alelt_landing"
+        - "Service account with BigQuery Data Editor + Job User, JSON key stored as a secret"
+      form_fields: { project: "<project-id>", dataset: alelt_landing, location: US, credentials_ref: "file:bigquery_sa.json" }
+      test_engine: bigquery
+
+  - id: oracle-cloud
+    kind: target
+    engine: oracle
+    label: Oracle Autonomous Database (Cloud Free Tier)
+    availability: no_image
+    status: planned
+    guidance:
+      what: Managed Oracle database. Use it when the local Oracle Free image cannot run on your machine.
+      signup_url: https://www.oracle.com/cloud/free/
+      docs_url: https://docs.oracle.com/en/cloud/paas/autonomous-database/
+      objects:
+        - "Always Free Autonomous Database (Transaction Processing)"
+        - "Database user for the test schema; wallet or TLS connection string"
+      form_fields: { dsn: "<tns alias or connection string>", user: alelt_svc, password_ref: "file:oracle_password" }
+      test_engine: oracle

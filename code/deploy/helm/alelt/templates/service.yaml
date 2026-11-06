@@ -1,0 +1,74 @@
+{{- $component := ternary "api" "all" (eq .Values.mode "ha") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "alelt.fullname" . }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector: {{- include "alelt.selector" (dict "root" . "component" $component) | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.service.port }}, targetPort: http }
+---
+# Worker / standalone metrics (Prometheus scrape target)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "alelt.fullname" . }}-metrics
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector: {{- include "alelt.selector" (dict "root" . "component" (ternary "worker" "all" (eq .Values.mode "ha"))) | nindent 4 }}
+  ports:
+    - { name: metrics, port: {{ .Values.worker.metricsPort }}, targetPort: metrics }
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "alelt.fullname" . }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if and .Values.ingress.agentMtls.enabled .Values.ingress.agentMtls.caSecret }}
+    nginx.ingress.kubernetes.io/auth-tls-secret: {{ .Values.ingress.agentMtls.caSecret | quote }}
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "optional"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "3"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-SSL-Client-Fingerprint "";
+      if ($ssl_client_verify = SUCCESS) { set $alelt_fp $ssl_client_fingerprint; }
+      proxy_set_header X-SSL-Client-Fingerprint $alelt_fp;
+      proxy_set_header X-ALELT-Dev-Role "";
+    {{- else }}
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-SSL-Client-Fingerprint "";
+      proxy_set_header X-ALELT-Dev-Role "";
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "alelt.fullname" $ }}
+                port: { name: http }
+          {{- end }}
+    {{- end }}
+{{- end }}

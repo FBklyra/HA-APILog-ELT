@@ -1,0 +1,21 @@
+# Output profiles: names/types of the system columns ALELT writes in a destination.
+# Selected per connection with `output_profile:` in tables.yaml (default: alelt).
+# Extensions may ship extra profile files; loaders merge every file listed in `extensions.yaml: profile_files`.
+profiles:
+  alelt:
+    synced_column: _ALELT_SYNCED        # TIMESTAMP_TZ of the load that wrote the row
+    deleted_column: _ALELT_DELETED      # BOOLEAN soft-delete flag
+    id_column: _ALELT_ID                # surrogate key for tables without a primary key
+    synced_type: TIMESTAMP_TZ
+    deleted_type: BOOLEAN
+    id_type: VARCHAR(16777216)
+  golden_spec:                       # names/types detected from config/golden/columns.csv (system columns
+    from_golden: true                #   common to every golden table); used when matching an existing landing schema
+  custom:                            # example: match the column names of an existing landing schema
+    synced_column: _LOADED_AT
+    deleted_column: _IS_DELETED
+    id_column: _ROW_ID
+    synced_type: TIMESTAMP_TZ
+    deleted_type: BOOLEAN
+    id_type: VARCHAR(64)
+default: alelt

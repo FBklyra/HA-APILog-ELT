@@ -1,0 +1,575 @@
+{
+ "source": "SYNTHETIC fixtures (not recorded from a live Oracle) - see build_fixtures.py",
+ "rows": [
+  {
+   "SCN": 100,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 101,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 1,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 1,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDERS\"(\"ORDER_ID\",\"CUSTOMER\",\"STATUS\",\"AMOUNT\",\"QTY\",\"BIG\",\"RATE\",\"RATE32\",\"ORDER_DATE\",\"CREATED\",\"EVENT_TS\",\"LOCAL_TS\",\"RAW_COL\",\"BIGTXT\",\"NOTES\",\"DOC\") values ('201','Acmé Ltd ✓ it''s','N','1234.5','-7','9007199254740993','1.5E+000','2.5E-001',TO_DATE('2026-11-04 08:00:00', 'YYYY-MM-DD HH24:MI:SS'),TO_TIMESTAMP('2026-11-04 08:00:00.123456000'),TO_TIMESTAMP_TZ('2026-11-04 08:00:00.123000000 -05:00'),TO_TIMESTAMP('2026-11-04 08:00:00.500000000'),HEXTORAW('00ff10'),'xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 101,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 1,
+   "SQL_REDO": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy',EMPTY_CLOB(),EMPTY_BLOB());",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 102,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 9,
+   "OPERATION": "SEL_LOB_LOCATOR",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "DECLARE \n loc_c CLOB; \n buf_c VARCHAR2(6156); \n loc_b BLOB; \n buf_b RAW(6156); \nloc_nc NCLOB; \n buf_nc NVARCHAR2(6156); \nBEGIN\n select \"NOTES\" into loc_c from \"ALELTTEST\".\"ALELT_ORDERS\" where \"ORDER_ID\" = '201' and ROWID = 'AAAR1AAAHAAAACFAAA' for update;",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 102,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 10,
+   "OPERATION": "LOB_WRITE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": " buf_c := 'short clob'; \n  dbms_lob.write(loc_c, 10, 1, buf_c);\nEND;",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 103,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 9,
+   "OPERATION": "SEL_LOB_LOCATOR",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "DECLARE \n loc_c CLOB; \n buf_c VARCHAR2(6156); \n loc_b BLOB; \n buf_b RAW(6156); \nBEGIN\n select \"DOC\" into loc_b from \"ALELTTEST\".\"ALELT_ORDERS\" where \"ORDER_ID\" = '201' and ROWID = 'AAAR1AAAHAAAACFAAA' for update;",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 103,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 10,
+   "OPERATION": "LOB_WRITE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": " buf_b := HEXTORAW('deadbeef'); \n  dbms_lob.write(loc_b, 4, 1, buf_b);\nEND;",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 104,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDER_LINES\"(\"ORDER_ID\",\"LINE_NO\",\"ITEM\",\"QTY\") values ('201','1','TIRE','4');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 104,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAB",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDER_LINES\"(\"ORDER_ID\",\"LINE_NO\",\"ITEM\",\"QTY\") values ('201','2','OIL','1');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 105,
+   "XID": "0A0001000000AAAA",
+   "OPERATION_CODE": 7,
+   "OPERATION": "COMMIT",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 110,
+   "XID": "0A0002000000BBBB",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 111,
+   "XID": "0A0002000000BBBB",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAC",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDERS\"(\"ORDER_ID\",\"STATUS\",\"CUSTOMER\") values ('203','R','rolled back');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 112,
+   "XID": "0A0002000000BBBB",
+   "OPERATION_CODE": 2,
+   "OPERATION": "DELETE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAC",
+   "CSF": 0,
+   "ROLLBACK": 1,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "delete from \"ALELTTEST\".\"ALELT_ORDERS\" where \"ORDER_ID\" = '203' and ROWID = 'AAAR1AAAHAAAACFAAC';",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 113,
+   "XID": "0A0002000000BBBB",
+   "OPERATION_CODE": 36,
+   "OPERATION": "ROLLBACK",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 120,
+   "XID": "0A0003000000CCCC",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 121,
+   "XID": "0A0003000000CCCC",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAC",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDER_LINES\"(\"ORDER_ID\",\"LINE_NO\",\"ITEM\",\"QTY\") values ('201','3','WIPER','2');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 122,
+   "XID": "0A0003000000CCCC",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAD",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"ALELTTEST\".\"ALELT_ORDER_LINES\"(\"ORDER_ID\",\"LINE_NO\",\"ITEM\",\"QTY\") values ('201','4','SAVEPOINT_UNDONE','9');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 123,
+   "XID": "0A0003000000CCCC",
+   "OPERATION_CODE": 2,
+   "OPERATION": "DELETE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAD",
+   "CSF": 0,
+   "ROLLBACK": 1,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "delete from \"ALELTTEST\".\"ALELT_ORDER_LINES\" where \"ORDER_ID\" = '201' and \"LINE_NO\" = '4' and ROWID = 'AAAR2AAAHAAAACNAAD';",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 124,
+   "XID": "0A0004000000DDDD",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 125,
+   "XID": "0A0004000000DDDD",
+   "OPERATION_CODE": 3,
+   "OPERATION": "UPDATE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDER_LINES",
+   "ROW_ID": "AAAR2AAAHAAAACNAAB",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "update \"ALELTTEST\".\"ALELT_ORDER_LINES\" set \"LINE_NO\" = '20' where \"ORDER_ID\" = '201' and \"LINE_NO\" = '2' and \"ITEM\" = 'OIL' and \"QTY\" = '1' and ROWID = 'AAAR2AAAHAAAACNAAB';",
+   "SQL_UNDO": "update \"ALELTTEST\".\"ALELT_ORDER_LINES\" set \"LINE_NO\" = '2' where \"ORDER_ID\" = '201' and \"LINE_NO\" = '20' and \"ITEM\" = 'OIL' and \"QTY\" = '1' and ROWID = 'AAAR2AAAHAAAACNAAB';",
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 126,
+   "XID": "0A0003000000CCCC",
+   "OPERATION_CODE": 7,
+   "OPERATION": "COMMIT",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 130,
+   "XID": "0A0005000000EEEE",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 131,
+   "XID": "0A0005000000EEEE",
+   "OPERATION_CODE": 3,
+   "OPERATION": "UPDATE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "update \"ALELTTEST\".\"ALELT_ORDERS\" set \"STATUS\" = 'P', \"AMOUNT\" = '99.99' where \"ORDER_ID\" = '201' and \"CUSTOMER\" = 'Acmé Ltd ✓ it''s' and \"STATUS\" = 'N' and \"AMOUNT\" = '1234.5' and ROWID = 'AAAR1AAAHAAAACFAAA';",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 132,
+   "XID": "0A0005000000EEEE",
+   "OPERATION_CODE": 255,
+   "OPERATION": "UNSUPPORTED",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAA",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "Unsupported",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": "Unsupported (column-level encryption)"
+  },
+  {
+   "SCN": 133,
+   "XID": "0A0005000000EEEE",
+   "OPERATION_CODE": 7,
+   "OPERATION": "COMMIT",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 134,
+   "XID": "0A0004000000DDDD",
+   "OPERATION_CODE": 7,
+   "OPERATION": "COMMIT",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 140,
+   "XID": "0A0006000000FFFF",
+   "OPERATION_CODE": 6,
+   "OPERATION": "START",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 141,
+   "XID": "0A0006000000FFFF",
+   "OPERATION_CODE": 2,
+   "OPERATION": "DELETE",
+   "SEG_OWNER": "ALELTTEST",
+   "TABLE_NAME": "ALELT_ORDERS",
+   "ROW_ID": "AAAR1AAAHAAAACFAAB",
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "delete from \"ALELTTEST\".\"ALELT_ORDERS\" where \"ORDER_ID\" = '202' and \"STATUS\" = 'N' and ROWID = 'AAAR1AAAHAAAACFAAB';",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 142,
+   "XID": "0A0006000000FFFF",
+   "OPERATION_CODE": 1,
+   "OPERATION": "INSERT",
+   "SEG_OWNER": "HR",
+   "TABLE_NAME": "OTHER_T",
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": "insert into \"HR\".\"OTHER_T\"(\"A\") values ('1');",
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  },
+  {
+   "SCN": 143,
+   "XID": "0A0006000000FFFF",
+   "OPERATION_CODE": 7,
+   "OPERATION": "COMMIT",
+   "SEG_OWNER": null,
+   "TABLE_NAME": null,
+   "ROW_ID": null,
+   "CSF": 0,
+   "ROLLBACK": 0,
+   "RS_ID": " 0x000001.0001.0010 ",
+   "SSN": 0,
+   "SQL_REDO": null,
+   "SQL_UNDO": null,
+   "TIMESTAMP": {
+    "$ldt": "2026-11-04T08:00:00"
+   },
+   "INFO": null
+  }
+ ]
+}

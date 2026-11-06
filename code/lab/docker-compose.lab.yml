@@ -1,0 +1,235 @@
+# SPDX-License-Identifier: Apache-2.0
+# ALELT local test lab - throw-away sources and targets with fake data, one compose profile per catalog entry
+# (lab/catalog.yaml). Use the wrappers:  ./lab/lab.sh up postgres mysql landing   |   .\lab\lab.ps1 up postgres
+# Raw compose:  COMPOSE_PROFILES=postgres,landing docker compose -p alelt-lab -f lab/docker-compose.lab.yml up -d --wait
+#
+# Safety: own project (alelt-lab), own network (alelt-lab), own named volumes (alelt-lab-*), host ports bound to
+# 127.0.0.1 only, no Docker socket mounted anywhere, official public images with pinned tags. Nothing here touches
+# other containers. Passwords are throw-away lab values (fake data only).
+name: alelt-lab
+
+networks:
+  lab:
+    name: alelt-lab
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "2" }
+
+services:
+  # ------------------------------------------------------------------------------------------------ sources
+  alelt-lab-postgres:
+    profiles: [postgres]
+    image: ${LAB_IMG_POSTGRES:-postgres:16.8-bookworm}
+    container_name: alelt-lab-postgres
+    command: ["-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: { POSTGRES_USER: lab, POSTGRES_PASSWORD: lab_local_only, POSTGRES_DB: labdb }
+    ports: ["127.0.0.1:${LAB_PORT_POSTGRES:-47432}:5432"]
+    volumes:
+      - alelt-lab-postgres:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U lab -d labdb"], interval: 5s, timeout: 5s, retries: 30 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-mysql:
+    profiles: [mysql]
+    image: ${LAB_IMG_MYSQL:-mysql:9.3.0}
+    container_name: alelt-lab-mysql
+    command: ["--server-id=1", "--log-bin=binlog", "--binlog-format=ROW", "--binlog-row-image=FULL",
+              "--binlog-row-metadata=FULL", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
+    environment: { MYSQL_ROOT_PASSWORD: lab_local_only, MYSQL_ROOT_HOST: "%" }
+    ports: ["127.0.0.1:${LAB_PORT_MYSQL:-47306}:3306"]
+    volumes:
+      - alelt-lab-mysql:/var/lib/mysql
+      - ./init/mysql:/docker-entrypoint-initdb.d:ro
+    healthcheck: { test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -plab_local_only --silent"], interval: 5s, timeout: 5s, retries: 60 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-mariadb:
+    profiles: [mariadb]
+    image: ${LAB_IMG_MARIADB:-mariadb:11.4.5}
+    container_name: alelt-lab-mariadb
+    command: ["--server-id=1", "--log-bin", "--binlog-format=ROW", "--binlog-row-image=FULL"]
+    environment: { MARIADB_ROOT_PASSWORD: lab_local_only }
+    ports: ["127.0.0.1:${LAB_PORT_MARIADB:-47307}:3306"]
+    volumes:
+      - alelt-lab-mariadb:/var/lib/mysql
+      - ./init/mysql:/docker-entrypoint-initdb.d:ro
+    healthcheck: { test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"], interval: 5s, timeout: 5s, retries: 60 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-sqlserver:
+    profiles: [sqlserver]
+    image: ${LAB_IMG_SQLSERVER:-mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04}
+    container_name: alelt-lab-sqlserver
+    platform: ${LAB_PLATFORM_SQLSERVER:-linux/amd64}   # amd64-only image (emulated on ARM64); linux/arm64 with azure-sql-edge
+    environment: { ACCEPT_EULA: "Y", MSSQL_PID: Developer, MSSQL_SA_PASSWORD: Lab_local_only1, MSSQL_AGENT_ENABLED: "${LAB_SQLSERVER_AGENT:-true}" }   # false: no Agent (SQL Edge) - capture via dev_manual_scan
+    ports: ["127.0.0.1:${LAB_PORT_SQLSERVER:-47143}:1433"]
+    volumes:
+      - alelt-lab-sqlserver:/var/opt/mssql
+      - ./init/sqlserver:/lab-init:ro
+    healthcheck:
+      # images without sqlcmd (azure-sql-edge local fallback): TCP probe; lab init then runs from the host (pyodbc)
+      test: ["CMD-SHELL", "if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Lab_local_only1 -Q 'SELECT 1' -b -o /dev/null; else bash -c 'exec 3<>/dev/tcp/127.0.0.1/1433'; fi"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-oracle:
+    profiles: [oracle]
+    image: ${LAB_IMG_ORACLE:-container-registry.oracle.com/database/free:23.7.0.0-lite}
+    container_name: alelt-lab-oracle
+    environment: { ORACLE_PWD: lab_local_only, ORACLE_PASSWORD: lab_local_only }   # ORACLE_PASSWORD: gvenzl/oracle-free fallback
+    ports: ["127.0.0.1:${LAB_PORT_ORACLE:-47521}:1521"]
+    volumes:
+      - alelt-lab-oracle:/opt/oracle/oradata
+      - ./init/oracle:/opt/oracle/scripts/setup:ro
+      - ./init/oracle:/container-entrypoint-initdb.d:ro    # gvenzl/oracle-free fallback
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -x /opt/oracle/checkDBStatus.sh ]; then /opt/oracle/checkDBStatus.sh; else /opt/oracle/healthcheck.sh; fi"]
+      interval: 15s
+      timeout: 10s
+      retries: 60
+      start_period: 120s
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-db2:
+    profiles: [db2]
+    image: ${LAB_IMG_DB2:-icr.io/db2_community/db2:12.1.2.0}
+    container_name: alelt-lab-db2
+    platform: linux/amd64                      # amd64-only image
+    privileged: true                           # required by the Db2 Community image (IBM documentation)
+    environment: { LICENSE: accept, DB2INSTANCE: db2inst1, DB2INST1_PASSWORD: lab_local_only, DBNAME: LABDB, ARCHIVE_LOGS: "true", AUTOCONFIG: "false" }
+    ports: ["127.0.0.1:${LAB_PORT_DB2:-47500}:50000"]
+    volumes:
+      - alelt-lab-db2:/database
+      - ./init/db2:/var/custom:ro
+    healthcheck:
+      test: ["CMD-SHELL", "su - db2inst1 -c 'db2 connect to LABDB' >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 20s
+      retries: 40
+      start_period: 300s
+    networks: [lab]
+    logging: *logging
+
+  # ------------------------------------------------------------------------------------------------ targets
+  alelt-lab-landing:
+    profiles: [landing]
+    image: ${LAB_IMG_POSTGRES:-postgres:16.8-bookworm}
+    container_name: alelt-lab-landing
+    environment: { POSTGRES_USER: lab, POSTGRES_PASSWORD: lab_local_only, POSTGRES_DB: landing }
+    ports: ["127.0.0.1:${LAB_PORT_LANDING:-47442}:5432"]
+    volumes: [alelt-lab-landing:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U lab -d landing"], interval: 5s, timeout: 5s, retries: 30 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-s3:                                # SeaweedFS S3; creates bucket "lake" itself (idempotent), then healthy
+    profiles: [iceberg, delta]
+    image: ${LAB_IMG_S3:-chrislusf/seaweedfs:3.85}
+    container_name: alelt-lab-s3
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -f /tmp/bucket-ok
+        weed server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -master.volumeSizeLimitMB=256 &
+        until wget -q -O /dev/null http://127.0.0.1:8333/ 2>/dev/null || wget -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'; do sleep 1; done
+        until echo 's3.bucket.list' | weed shell -master=127.0.0.1:9333 -filer=127.0.0.1:8888 2>/dev/null | grep -q lake; do
+          echo 's3.bucket.create -name lake' | weed shell -master=127.0.0.1:9333 -filer=127.0.0.1:8888 >/dev/null 2>&1; sleep 2
+        done
+        echo bucket-ok; touch /tmp/bucket-ok; wait
+    ports: ["127.0.0.1:${LAB_PORT_S3:-47900}:8333"]
+    volumes:
+      - alelt-lab-s3:/data
+      - ./init/s3/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck: { test: ["CMD-SHELL", "test -f /tmp/bucket-ok"], interval: 5s, timeout: 5s, retries: 60 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-iceberg-rest:
+    profiles: [iceberg]
+    image: ${LAB_IMG_ICEBERG_REST:-apache/iceberg-rest-fixture:1.9.1}
+    container_name: alelt-lab-iceberg-rest
+    environment:
+      CATALOG_WAREHOUSE: s3://lake/iceberg
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://alelt-lab-s3:8333
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      AWS_ACCESS_KEY_ID: lab
+      AWS_SECRET_ACCESS_KEY: lab_local_only
+      AWS_REGION: us-east-1
+      # AWS SDK >= 2.30 sends aws-chunked uploads with checksum trailers by default; SeaweedFS 3.85 stores that
+      # framing verbatim (metadata.json becomes unreadable) -> checksums only when an operation requires them
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+    ports: ["127.0.0.1:${LAB_PORT_ICEBERG_REST:-47181}:8181"]
+    depends_on: { alelt-lab-s3: { condition: service_healthy } }
+    healthcheck: { test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8181/v1/config >/dev/null || exit 1"], interval: 5s, timeout: 5s, retries: 30 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-trino:
+    profiles: [iceberg]
+    image: ${LAB_IMG_TRINO:-trinodb/trino:476}
+    container_name: alelt-lab-trino
+    ports: ["127.0.0.1:${LAB_PORT_TRINO:-47808}:8080"]
+    volumes: ["./init/trino/iceberg.properties:/etc/trino/catalog/iceberg.properties:ro"]
+    depends_on: { alelt-lab-iceberg-rest: { condition: service_healthy } }
+    healthcheck: { test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/v1/info | grep -q '\"starting\":false'"], interval: 10s, timeout: 5s, retries: 30, start_period: 20s }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-clickhouse:
+    profiles: [clickhouse]
+    image: ${LAB_IMG_CLICKHOUSE:-clickhouse/clickhouse-server:25.3.6.56}
+    container_name: alelt-lab-clickhouse
+    environment: { CLICKHOUSE_DB: landing, CLICKHOUSE_USER: lab, CLICKHOUSE_PASSWORD: lab_local_only, CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1" }
+    ports: ["127.0.0.1:${LAB_PORT_CLICKHOUSE_HTTP:-47823}:8123", "127.0.0.1:${LAB_PORT_CLICKHOUSE_NATIVE:-47824}:9000"]
+    volumes: [alelt-lab-clickhouse:/var/lib/clickhouse]
+    ulimits: { nofile: { soft: 262144, hard: 262144 } }
+    healthcheck: { test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8123/ping | grep -q Ok"], interval: 5s, timeout: 5s, retries: 30 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-redpanda:
+    profiles: [redpanda]
+    image: ${LAB_IMG_REDPANDA:-redpandadata/redpanda:v24.3.7}
+    container_name: alelt-lab-redpanda
+    command: ["redpanda", "start", "--mode", "dev-container", "--smp", "1", "--memory", "512M", "--overprovisioned",
+              "--kafka-addr", "internal://0.0.0.0:9092,external://0.0.0.0:19092",
+              "--advertise-kafka-addr", "internal://alelt-lab-redpanda:9092,external://127.0.0.1:${LAB_PORT_KAFKA:-47092}"]
+    ports: ["127.0.0.1:${LAB_PORT_KAFKA:-47092}:19092", "127.0.0.1:${LAB_PORT_REDPANDA_ADMIN:-47644}:9644"]
+    volumes: [alelt-lab-redpanda:/var/lib/redpanda/data]
+    healthcheck: { test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"], interval: 5s, timeout: 5s, retries: 30 }
+    networks: [lab]
+    logging: *logging
+
+  alelt-lab-bigquery:
+    profiles: [bigquery]
+    image: ${LAB_IMG_BIGQUERY:-ghcr.io/goccy/bigquery-emulator:0.6.6}
+    container_name: alelt-lab-bigquery
+    platform: ${LAB_PLATFORM_BIGQUERY:-linux/amd64}   # 0.6.6 is amd64-only (emulated on ARM64); newer local tags may be arm64
+    command: ["--project=lab-project", "--dataset=landing", "--port=9050", "--grpc-port=9060"]
+    ports: ["127.0.0.1:${LAB_PORT_BIGQUERY:-47050}:9050", "127.0.0.1:${LAB_PORT_BIGQUERY_GRPC:-47060}:9060"]
+    networks: [lab]
+    logging: *logging
+
+volumes:
+  alelt-lab-postgres: { name: alelt-lab-postgres }
+  alelt-lab-mysql: { name: alelt-lab-mysql }
+  alelt-lab-mariadb: { name: alelt-lab-mariadb }
+  alelt-lab-sqlserver: { name: alelt-lab-sqlserver }
+  alelt-lab-oracle: { name: alelt-lab-oracle }
+  alelt-lab-db2: { name: alelt-lab-db2 }
+  alelt-lab-landing: { name: alelt-lab-landing }
+  alelt-lab-s3: { name: alelt-lab-s3 }
+  alelt-lab-clickhouse: { name: alelt-lab-clickhouse }
+  alelt-lab-redpanda: { name: alelt-lab-redpanda }

@@ -1,0 +1,20 @@
+# DEP-07 / DEP-05 / DEP-04: keep pinned SHAs, digests and hashed locks current. Locks are regenerated with
+# deploy/image/lock.sh (Dependabot "pip" understands pip-compile outputs with hashes).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups: { actions: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directories: [/deploy/image, /deploy/hub, /deploy/hub/nginx]
+    schedule: { interval: weekly }
+  - package-ecosystem: docker-compose
+    directories: [/deploy/ha, /deploy/hub, /deploy/local]
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directories: [/deploy/image, /deploy/linux]
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /console
+    schedule: { interval: weekly }

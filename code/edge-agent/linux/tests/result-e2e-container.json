@@ -1,0 +1,52 @@
+{
+ "checks": [
+  {
+   "check": "unit + daemon tests inside Linux (incl. sd_notify)",
+   "ok": true,
+   "detail": "OK"
+  },
+  {
+   "check": "docker stop (SIGTERM to PID 1) -> exit code 0",
+   "ok": true,
+   "detail": "exit=0 in 0.4s"
+  },
+  {
+   "check": "graceful path logged (checkpoint, drain, stopped)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "journald-ready JSON logs on stdout/stderr",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "state.json next_pos == hub last next_pos after stop",
+   "ok": true,
+   "detail": "state=000000000097999 hub=000000000097999 reason=SIGTERM"
+  },
+  {
+   "check": "state.json capturing kept for restart",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "restart resumes exactly at the saved position",
+   "ok": true,
+   "detail": "first from_pos after restart=000000000097999"
+  },
+  {
+   "check": "hub chain contiguous across stop/start (no gap, no overlap)",
+   "ok": true,
+   "detail": "16 batches"
+  },
+  {
+   "check": "second stop exit 0, state == hub",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "batches": 16,
+ "first_batches": 5,
+ "pass": true
+}

@@ -1,0 +1,45 @@
+{{- if and (eq .Values.mode "ha") .Values.migrate.enabled }}
+# Schema migration (idempotent, additive). Hook: runs before api/worker roll on install and upgrade.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "alelt.fullname" . }}-migrate{{ if ne (include "alelt.migrateHook" .) "true" }}-{{ .Release.Revision }}{{ end }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  {{- if eq (include "alelt.migrateHook" .) "true" }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  {{- end }}
+spec:
+  backoffLimit: {{ .Values.migrate.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrate.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels: {{- include "alelt.selector" (dict "root" . "component" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "alelt.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate"]
+          env:
+            - { name: ALELT_ROLE, value: migrate }
+            {{- include "alelt.env" . | nindent 12 }}
+          envFrom: {{- include "alelt.envFromNamed" (dict "root" . "suffix" (ternary "migrate-env" "env" (eq (include "alelt.migrateHook" .) "true"))) | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: varlib, mountPath: /var/lib/alelt }
+      volumes:
+        {{- include "alelt.scratchVolumes" . | nindent 8 }}
+        - { name: varlib, emptyDir: {} }
+{{- end }}

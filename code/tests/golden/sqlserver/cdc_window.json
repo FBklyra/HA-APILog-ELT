@@ -1,0 +1,948 @@
+{
+ "server": "recorded from a dev SQL Server (database alelttest_cdc)",
+ "server_offset_min": 0,
+ "base": 200,
+ "after_lsn": "0000002600000EA80001",
+ "end_lsn": "0000002600000F780003",
+ "catalog": {
+  "connection_id": "golden",
+  "engine": "sqlserver",
+  "taken_at": "2026-11-04T15:23:35.091645Z",
+  "position": {
+   "engine": "sqlserver",
+   "text": "0000002600000C600003:FFFFFFFFFFFFFFFFFFFF"
+  },
+  "database_codepage": null,
+  "tables": [
+   {
+    "table": {
+     "schema_": "dbo",
+     "name": "ALELT_NOT_CAPTURED"
+    },
+    "engine_ids": {
+     "object_id": 1333579789
+    },
+    "capture_enabled": false,
+    "compression": null,
+    "columns": [
+     {
+      "name": "ID",
+      "ordinal": 0,
+      "engine_type": "int",
+      "canonical_type": "INT",
+      "length": 10,
+      "scale": null,
+      "nullable": false,
+      "key_seq": 1,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "V",
+      "ordinal": 1,
+      "engine_type": "varchar",
+      "canonical_type": "STRING",
+      "length": 10,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     }
+    ]
+   },
+   {
+    "table": {
+     "schema_": "dbo",
+     "name": "ALELT_ORDER_LINES"
+    },
+    "engine_ids": {
+     "object_id": 1301579675
+    },
+    "capture_enabled": true,
+    "compression": null,
+    "columns": [
+     {
+      "name": "ORDER_ID",
+      "ordinal": 0,
+      "engine_type": "int",
+      "canonical_type": "INT",
+      "length": 10,
+      "scale": null,
+      "nullable": false,
+      "key_seq": 1,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "LINE_NO",
+      "ordinal": 1,
+      "engine_type": "int",
+      "canonical_type": "INT",
+      "length": 10,
+      "scale": null,
+      "nullable": false,
+      "key_seq": 2,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "ITEM",
+      "ordinal": 2,
+      "engine_type": "varchar",
+      "canonical_type": "STRING",
+      "length": 30,
+      "scale": null,
+      "nullable": false,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "QTY",
+      "ordinal": 3,
+      "engine_type": "int",
+      "canonical_type": "INT",
+      "length": 10,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     }
+    ]
+   },
+   {
+    "table": {
+     "schema_": "dbo",
+     "name": "ALELT_ORDERS"
+    },
+    "engine_ids": {
+     "object_id": 1253579504
+    },
+    "capture_enabled": true,
+    "compression": null,
+    "columns": [
+     {
+      "name": "ORDER_ID",
+      "ordinal": 0,
+      "engine_type": "int",
+      "canonical_type": "INT",
+      "length": 10,
+      "scale": null,
+      "nullable": false,
+      "key_seq": 1,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "CUSTOMER",
+      "ordinal": 1,
+      "engine_type": "nvarchar",
+      "canonical_type": "STRING",
+      "length": 40,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "STATUS",
+      "ordinal": 2,
+      "engine_type": "char",
+      "canonical_type": "STRING",
+      "length": 1,
+      "scale": null,
+      "nullable": false,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "AMOUNT",
+      "ordinal": 3,
+      "engine_type": "decimal",
+      "canonical_type": "DECIMAL",
+      "length": 12,
+      "scale": 2,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "QTY",
+      "ordinal": 4,
+      "engine_type": "smallint",
+      "canonical_type": "SHORT",
+      "length": 5,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "TINY",
+      "ordinal": 5,
+      "engine_type": "tinyint",
+      "canonical_type": "SHORT",
+      "length": 3,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "BIG",
+      "ordinal": 6,
+      "engine_type": "bigint",
+      "canonical_type": "LONG",
+      "length": 19,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "RATE",
+      "ordinal": 7,
+      "engine_type": "float",
+      "canonical_type": "DOUBLE",
+      "length": 53,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "RATE32",
+      "ordinal": 8,
+      "engine_type": "real",
+      "canonical_type": "FLOAT",
+      "length": 24,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "PRICE",
+      "ordinal": 9,
+      "engine_type": "money",
+      "canonical_type": "DECIMAL",
+      "length": 19,
+      "scale": 4,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "ACTIVE",
+      "ordinal": 10,
+      "engine_type": "bit",
+      "canonical_type": "BOOLEAN",
+      "length": 1,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "ORDER_DATE",
+      "ordinal": 11,
+      "engine_type": "date",
+      "canonical_type": "LOCALDATE",
+      "length": 10,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "PICKUP_TIME",
+      "ordinal": 12,
+      "engine_type": "time",
+      "canonical_type": "LOCALTIME",
+      "length": null,
+      "scale": 3,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "CREATED",
+      "ordinal": 13,
+      "engine_type": "datetime2",
+      "canonical_type": "LOCALDATETIME",
+      "length": null,
+      "scale": 6,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "LEGACY_DT",
+      "ordinal": 14,
+      "engine_type": "datetime",
+      "canonical_type": "LOCALDATETIME",
+      "length": null,
+      "scale": 3,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "EVENT_TS",
+      "ordinal": 15,
+      "engine_type": "datetimeoffset",
+      "canonical_type": "INSTANT",
+      "length": null,
+      "scale": 3,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "GUID",
+      "ordinal": 16,
+      "engine_type": "uniqueidentifier",
+      "canonical_type": "STRING",
+      "length": 36,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "CODE",
+      "ordinal": 17,
+      "engine_type": "varchar",
+      "canonical_type": "STRING",
+      "length": 10,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "RAW",
+      "ordinal": 18,
+      "engine_type": "varbinary",
+      "canonical_type": "BINARY",
+      "length": 16,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "NOTES",
+      "ordinal": 19,
+      "engine_type": "nvarchar(max)",
+      "canonical_type": "STRING",
+      "length": null,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "DOC",
+      "ordinal": 20,
+      "engine_type": "varbinary(max)",
+      "canonical_type": "BINARY",
+      "length": null,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     },
+     {
+      "name": "XDOC",
+      "ordinal": 21,
+      "engine_type": "xml",
+      "canonical_type": "XML",
+      "length": null,
+      "scale": null,
+      "nullable": true,
+      "key_seq": null,
+      "codepage": null,
+      "default": null
+     }
+    ]
+   }
+  ]
+ },
+ "instances": {
+  "dbo_ALELT_ORDERS": {
+   "table": "dbo.ALELT_ORDERS",
+   "captured": {
+    "ORDER_ID": 1,
+    "CUSTOMER": 2,
+    "STATUS": 3,
+    "AMOUNT": 4,
+    "QTY": 5,
+    "TINY": 6,
+    "BIG": 7,
+    "RATE": 8,
+    "RATE32": 9,
+    "PRICE": 10,
+    "ACTIVE": 11,
+    "ORDER_DATE": 12,
+    "PICKUP_TIME": 13,
+    "CREATED": 14,
+    "LEGACY_DT": 15,
+    "EVENT_TS": 16,
+    "GUID": 17,
+    "CODE": 18,
+    "RAW": 19,
+    "NOTES": 20,
+    "DOC": 21,
+    "XDOC": 22
+   },
+   "lob_cols": [
+    "DOC",
+    "NOTES",
+    "XDOC"
+   ]
+  },
+  "dbo_ALELT_ORDER_LINES": {
+   "table": "dbo.ALELT_ORDER_LINES",
+   "captured": {
+    "ORDER_ID": 1,
+    "LINE_NO": 2,
+    "ITEM": 3,
+    "QTY": 4
+   },
+   "lob_cols": []
+  }
+ },
+ "meta": [
+  {
+   "start_lsn": "0000002600000EB0001C",
+   "tran_id": "000000000453",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.110000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.110000"
+   }
+  },
+  {
+   "start_lsn": "0000002600000EE00016",
+   "tran_id": "000000000455",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.123000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.123000"
+   }
+  },
+  {
+   "start_lsn": "0000002600000F100008",
+   "tran_id": "000000000456",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.123000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.123000"
+   }
+  },
+  {
+   "start_lsn": "0000002600000F40000E",
+   "tran_id": "000000000457",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   }
+  },
+  {
+   "start_lsn": "0000002600000F700004",
+   "tran_id": "000000000458",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   }
+  },
+  {
+   "start_lsn": "0000002600000F780003",
+   "tran_id": "000000000459",
+   "begin": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   },
+   "end": {
+    "$ldt": "2026-11-04T15:23:35.133000"
+   }
+  }
+ ],
+ "rows": [
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADrAAHA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADrAAGA=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "P///"
+   },
+   "ORDER_ID": 201,
+   "CUSTOMER": "Acmé Ltd ✓",
+   "STATUS": "N",
+   "AMOUNT": {
+    "$dec": "1234.5"
+   },
+   "QTY": -7,
+   "TINY": 255,
+   "BIG": 9007199254740993,
+   "RATE": {
+    "$f": "1.5"
+   },
+   "RATE32": {
+    "$f": "0.25"
+   },
+   "PRICE": {
+    "$dec": "12.3456"
+   },
+   "ACTIVE": true,
+   "ORDER_DATE": {
+    "$date": "2026-11-04"
+   },
+   "PICKUP_TIME": {
+    "$time": "07:30:15.123000"
+   },
+   "CREATED": {
+    "$ldt": "2026-11-04T08:00:00.123456"
+   },
+   "LEGACY_DT": {
+    "$ldt": "2026-11-04T08:00:00.997000"
+   },
+   "EVENT_TS": {
+    "$ts": "2026-11-04T08:00:00.123000-05:00"
+   },
+   "GUID": {
+    "$uuid": "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+   },
+   "CODE": "ABC",
+   "RAW": {
+    "$bin": "AP8Q"
+   },
+   "NOTES": "long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text ",
+   "DOC": {
+    "$bin": "3q2+7w=="
+   },
+   "XDOC": "<a b=\"1\">x</a>",
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADrAAHA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADrAAGw=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "P///"
+   },
+   "ORDER_ID": 202,
+   "CUSTOMER": null,
+   "STATUS": "N",
+   "AMOUNT": null,
+   "QTY": null,
+   "TINY": null,
+   "BIG": null,
+   "RATE": null,
+   "RATE32": null,
+   "PRICE": null,
+   "ACTIVE": null,
+   "ORDER_DATE": null,
+   "PICKUP_TIME": null,
+   "CREATED": null,
+   "LEGACY_DT": null,
+   "EVENT_TS": null,
+   "GUID": null,
+   "CODE": null,
+   "RAW": null,
+   "NOTES": null,
+   "DOC": null,
+   "XDOC": null,
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADxAACA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADxAABw=="
+   },
+   "__$operation": 3,
+   "__$update_mask": {
+    "$bin": "AAAM"
+   },
+   "ORDER_ID": 201,
+   "CUSTOMER": "Acmé Ltd ✓",
+   "STATUS": "N",
+   "AMOUNT": {
+    "$dec": "1234.5"
+   },
+   "QTY": -7,
+   "TINY": 255,
+   "BIG": 9007199254740993,
+   "RATE": {
+    "$f": "1.5"
+   },
+   "RATE32": {
+    "$f": "0.25"
+   },
+   "PRICE": {
+    "$dec": "12.3456"
+   },
+   "ACTIVE": true,
+   "ORDER_DATE": {
+    "$date": "2026-11-04"
+   },
+   "PICKUP_TIME": {
+    "$time": "07:30:15.123000"
+   },
+   "CREATED": {
+    "$ldt": "2026-11-04T08:00:00.123456"
+   },
+   "LEGACY_DT": {
+    "$ldt": "2026-11-04T08:00:00.997000"
+   },
+   "EVENT_TS": {
+    "$ts": "2026-11-04T08:00:00.123000-05:00"
+   },
+   "GUID": {
+    "$uuid": "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+   },
+   "CODE": "ABC",
+   "RAW": {
+    "$bin": "AP8Q"
+   },
+   "NOTES": null,
+   "DOC": null,
+   "XDOC": null,
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADxAACA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADxAABw=="
+   },
+   "__$operation": 4,
+   "__$update_mask": {
+    "$bin": "AAAM"
+   },
+   "ORDER_ID": 201,
+   "CUSTOMER": "Acmé Ltd ✓",
+   "STATUS": "P",
+   "AMOUNT": {
+    "$dec": "99.99"
+   },
+   "QTY": -7,
+   "TINY": 255,
+   "BIG": 9007199254740993,
+   "RATE": {
+    "$f": "1.5"
+   },
+   "RATE32": {
+    "$f": "0.25"
+   },
+   "PRICE": {
+    "$dec": "12.3456"
+   },
+   "ACTIVE": true,
+   "ORDER_DATE": {
+    "$date": "2026-11-04"
+   },
+   "PICKUP_TIME": {
+    "$time": "07:30:15.123000"
+   },
+   "CREATED": {
+    "$ldt": "2026-11-04T08:00:00.123456"
+   },
+   "LEGACY_DT": {
+    "$ldt": "2026-11-04T08:00:00.997000"
+   },
+   "EVENT_TS": {
+    "$ts": "2026-11-04T08:00:00.123000-05:00"
+   },
+   "GUID": {
+    "$uuid": "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+   },
+   "CODE": "ABC",
+   "RAW": {
+    "$bin": "AP8Q"
+   },
+   "NOTES": "long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text ",
+   "DOC": {
+    "$bin": "3q2+7w=="
+   },
+   "XDOC": "<a b=\"1\">x</a>",
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAAD0AADg=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAAD0AADQ=="
+   },
+   "__$operation": 3,
+   "__$update_mask": {
+    "$bin": "GAAA"
+   },
+   "ORDER_ID": 201,
+   "CUSTOMER": "Acmé Ltd ✓",
+   "STATUS": "P",
+   "AMOUNT": {
+    "$dec": "99.99"
+   },
+   "QTY": -7,
+   "TINY": 255,
+   "BIG": 9007199254740993,
+   "RATE": {
+    "$f": "1.5"
+   },
+   "RATE32": {
+    "$f": "0.25"
+   },
+   "PRICE": {
+    "$dec": "12.3456"
+   },
+   "ACTIVE": true,
+   "ORDER_DATE": {
+    "$date": "2026-11-04"
+   },
+   "PICKUP_TIME": {
+    "$time": "07:30:15.123000"
+   },
+   "CREATED": {
+    "$ldt": "2026-11-04T08:00:00.123456"
+   },
+   "LEGACY_DT": {
+    "$ldt": "2026-11-04T08:00:00.997000"
+   },
+   "EVENT_TS": {
+    "$ts": "2026-11-04T08:00:00.123000-05:00"
+   },
+   "GUID": {
+    "$uuid": "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+   },
+   "CODE": "ABC",
+   "RAW": {
+    "$bin": "AP8Q"
+   },
+   "NOTES": "long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text ",
+   "DOC": {
+    "$bin": "3q2+7w=="
+   },
+   "XDOC": null,
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAAD0AADg=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAAD0AADQ=="
+   },
+   "__$operation": 4,
+   "__$update_mask": {
+    "$bin": "GAAA"
+   },
+   "ORDER_ID": 201,
+   "CUSTOMER": "Acmé Ltd ✓",
+   "STATUS": "P",
+   "AMOUNT": {
+    "$dec": "99.99"
+   },
+   "QTY": -7,
+   "TINY": 255,
+   "BIG": 9007199254740993,
+   "RATE": {
+    "$f": "1.5"
+   },
+   "RATE32": {
+    "$f": "0.25"
+   },
+   "PRICE": {
+    "$dec": "12.3456"
+   },
+   "ACTIVE": true,
+   "ORDER_DATE": {
+    "$date": "2026-11-04"
+   },
+   "PICKUP_TIME": {
+    "$time": "07:30:15.123000"
+   },
+   "CREATED": {
+    "$ldt": "2026-11-04T08:00:00.123456"
+   },
+   "LEGACY_DT": {
+    "$ldt": "2026-11-04T08:00:00.997000"
+   },
+   "EVENT_TS": {
+    "$ts": "2026-11-04T08:00:00.123000-05:00"
+   },
+   "GUID": {
+    "$uuid": "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+   },
+   "CODE": "ABC",
+   "RAW": {
+    "$bin": "AP8Q"
+   },
+   "NOTES": "short now",
+   "DOC": null,
+   "XDOC": "<a b=\"1\">x</a>",
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAAD3gAAw=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAAD3gAAg=="
+   },
+   "__$operation": 1,
+   "__$update_mask": {
+    "$bin": "P///"
+   },
+   "ORDER_ID": 202,
+   "CUSTOMER": null,
+   "STATUS": "N",
+   "AMOUNT": null,
+   "QTY": null,
+   "TINY": null,
+   "BIG": null,
+   "RATE": null,
+   "RATE32": null,
+   "PRICE": null,
+   "ACTIVE": null,
+   "ORDER_DATE": null,
+   "PICKUP_TIME": null,
+   "CREATED": null,
+   "LEGACY_DT": null,
+   "EVENT_TS": null,
+   "GUID": null,
+   "CODE": null,
+   "RAW": null,
+   "NOTES": null,
+   "DOC": null,
+   "XDOC": null,
+   "ci": "dbo_ALELT_ORDERS"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADrAAHA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADrAAGQ=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "Dw=="
+   },
+   "ORDER_ID": 201,
+   "LINE_NO": 1,
+   "ITEM": "TIRE",
+   "QTY": 4,
+   "ci": "dbo_ALELT_ORDER_LINES"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADrAAHA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADrAAGg=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "Dw=="
+   },
+   "ORDER_ID": 201,
+   "LINE_NO": 2,
+   "ITEM": "OIL",
+   "QTY": 1,
+   "ci": "dbo_ALELT_ORDER_LINES"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAADuAAFg=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAADuAAEA=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "Dw=="
+   },
+   "ORDER_ID": 201,
+   "LINE_NO": 3,
+   "ITEM": "WIPER",
+   "QTY": 2,
+   "ci": "dbo_ALELT_ORDER_LINES"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAAD3AABA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAAD3AAAg=="
+   },
+   "__$operation": 1,
+   "__$update_mask": {
+    "$bin": "Dw=="
+   },
+   "ORDER_ID": 201,
+   "LINE_NO": 2,
+   "ITEM": "OIL",
+   "QTY": 1,
+   "ci": "dbo_ALELT_ORDER_LINES"
+  },
+  {
+   "__$start_lsn": {
+    "$bin": "AAAAJgAAD3AABA=="
+   },
+   "__$seqval": {
+    "$bin": "AAAAJgAAD3AAAg=="
+   },
+   "__$operation": 2,
+   "__$update_mask": {
+    "$bin": "Dw=="
+   },
+   "ORDER_ID": 201,
+   "LINE_NO": 20,
+   "ITEM": "OIL",
+   "QTY": 1,
+   "ci": "dbo_ALELT_ORDER_LINES"
+  }
+ ]
+}

@@ -1,0 +1,29 @@
+# Db2 LUW engine type (SYSCAT.COLUMNS.TYPENAME) -> canonical type (DESIGN.md §4.2).
+# Unlisted types map to UNKNOWN => quarantine + alert (R7).
+# `for_bit_data: BINARY` applies when CODEPAGE = 0.
+engine: db2
+types:
+  BIGINT: LONG
+  BLOB: BINARY
+  BOOLEAN: BOOLEAN
+  CHARACTER: {canonical: STRING, for_bit_data: BINARY}
+  CHAR: {canonical: STRING, for_bit_data: BINARY}
+  CLOB: STRING
+  DATE: LOCALDATE
+  DBCLOB: STRING
+  DECFLOAT: DOUBLE
+  DECIMAL: DECIMAL
+  DOUBLE: DOUBLE
+  FLOAT: DOUBLE
+  GRAPHIC: STRING
+  INTEGER: INT
+  LONG VARCHAR: STRING
+  REAL: FLOAT
+  SMALLINT: SHORT
+  TIME: LOCALTIME
+  TIMESTAMP: LOCALDATETIME
+  VARBINARY: BINARY
+  BINARY: BINARY
+  VARCHAR: {canonical: STRING, for_bit_data: BINARY}
+  VARGRAPHIC: STRING
+  XML: XML

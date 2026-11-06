@@ -1,0 +1,7 @@
+# CI / test toolchain on top of the product runtime (locked with hashes into requirements-ci.lock; see lock.sh)
+-r requirements.txt
+pytest>=8
+ruff>=0.6
+mypy>=1.11
+moto[s3]>=5
+pip-audit>=2.7

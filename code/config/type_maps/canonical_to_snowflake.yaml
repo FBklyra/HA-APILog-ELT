@@ -1,0 +1,23 @@
+# Canonical type -> Snowflake physical type. Used only when no golden DDL exists for a column (R8).
+# Placeholders: {p} precision, {s} scale, {n} length.
+engine: snowflake
+types:
+  BOOLEAN: BOOLEAN
+  SHORT: NUMBER(5,0)
+  INT: NUMBER(10,0)
+  LONG: NUMBER(19,0)
+  DECIMAL: NUMBER({p},{s})
+  FLOAT: FLOAT
+  DOUBLE: FLOAT
+  LOCALDATE: DATE
+  LOCALTIME: TIME(9)
+  LOCALDATETIME: TIMESTAMP_NTZ(9)
+  INSTANT: TIMESTAMP_TZ(9)
+  STRING: VARCHAR({n})
+  BINARY: BINARY
+  JSON: VARIANT
+  XML: VARCHAR
+  UNKNOWN: null   # never created: column is quarantined (R7)
+defaults:
+  STRING_without_length: VARCHAR(16777216)
+  DECIMAL_without_precision: NUMBER(38,0)

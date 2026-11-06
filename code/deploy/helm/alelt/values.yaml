@@ -1,0 +1,198 @@
+# ALELT Helm values. Guide: deploy/HA.md. Examples: values-ha.yaml, values-standalone.yaml.
+#
+# mode: standalone -> one pod (`alelt all`: migrate + api + worker), PVC-backed local spool, SQLite or Postgres.
+# mode: ha         -> api Deployment (N) + worker Deployment (N) + migrate hook Job; Postgres metadata and an
+#                     S3-compatible spool are REQUIRED (the chart fails rendering otherwise).
+mode: ha
+
+image:
+  repository: alelt
+  tag: ""                     # default: .Chart.AppVersion
+  digest: ""                  # sha256:... from the release (cosign-verified); wins over tag (DEP-34). Production: set it.
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ---------------------------------------------------------------- non-secret settings (ALELT_* env)
+env:
+  ALELT_ENV: prod
+  ALELT_DEV_AUTH: "0"
+  ALELT_AGENT_AUTH: mtls
+  ALELT_DESTINATION: alelt_dst_postgres.connector:PostgresDestination
+  ALELT_LOAD_MAX_LATENCY_S: "0"
+  ALELT_LOG_LEVEL: INFO
+  ALELT_LEASE_TTL_S: "30"
+  ALELT_FORWARDED_ALLOW_IPS: "127.0.0.1"   # set to the ingress controller pod CIDR ('*' refused in prod; DEP-13)
+  ALELT_TRUSTED_PROXIES: ""          # REQUIRED with mtls: ingress controller pod CIDR (only it may assert the cert header)
+  ALELT_AUTO_MIGRATE: "0"            # upgrade contract: only the migrate hook Job changes the schema (deploy/UPGRADE.md)
+  ALELT_ARCHIVE_RETENTION_HOURS: ""  # DBA-owned archive-log retention (X-129 archive-horizon alert)
+extraEnv: {}                      # any other ALELT_* (OIDC, Snowflake account/user/database, thumbprints, ...)
+
+# ---------------------------------------------------------------- metadata database
+externalDatabase:
+  # Postgres (HA: managed service or Patroni). Standalone may use sqlite:////var/lib/alelt/data/alelt.db
+  url: ""                         # put the URL here only for demos; production: existingSecret
+  existingSecret: ""              # Secret holding key `urlKey`
+  urlKey: ALELT_DB_URL
+
+# destination URL (Postgres landing) or Snowflake key: via secrets.existingSecret (ALELT_DEST_URL) / extraEnv
+
+# ---------------------------------------------------------------- spool (raw batches + raw archive)
+spool:
+  # ha: s3://bucket/prefix (required). standalone: empty = file:///var/lib/alelt/spool on the PVC
+  url: ""
+s3:
+  endpoint: ""                    # empty = AWS regional endpoint; MinIO / Ceph RGW / GCS interop: https://host:port
+  region: us-east-1
+  addressing: ""                  # path | virtual (default: path when an endpoint is set)
+  timeoutSeconds: 30
+  existingSecret: ""              # Secret with ALELT_S3_ACCESS_KEY_ID / ALELT_S3_SECRET_ACCESS_KEY (optional ALELT_S3_SESSION_TOKEN)
+
+# ---------------------------------------------------------------- other secrets
+secrets:
+  existingSecret: ""              # Secret with any of ALELT_DEST_URL, ALELT_AGENT_TOKENS, ALELT_SNOWFLAKE_*, ALELT_OIDC_* (envFrom)
+  create: false                   # demo only: render a Secret from `values` below (never for production, R9)
+  values: {}
+
+# ---------------------------------------------------------------- api (console + REST + agent gateway)
+api:
+  replicas: 2                     # ha; standalone always 1
+  port: 8080
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+worker:
+  replicas: 2
+  metricsPort: 9100
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 2Gi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# standalone pod (`alelt all`)
+standalone:
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 3Gi }
+  persistence:
+    size: 50Gi
+    storageClass: ""
+    existingClaim: ""
+    accessModes: [ReadWriteOnce]
+
+# per-pod scratch (/tmp: txn spill), bounded so a large transaction cannot exhaust node disk/RAM (DEP-32)
+scratch:
+  sizeLimit: 2Gi
+
+# ---------------------------------------------------------------- availability
+podDisruptionBudget:
+  enabled: true                   # rendered only when replicas > 1
+  minAvailable: 1
+antiAffinity: preferred           # preferred | required | none (spread replicas over nodes)
+                                  # required: rollouts replace one pod at a time (maxUnavailable 1, maxSurge 0), so a
+                                  # cluster with exactly `replicas` nodes never gets stuck on an unschedulable surge pod
+                                  # (DEP-16). With >= replicas+1 nodes, `preferred` keeps zero-downtime surge rollouts.
+topologySpread:
+  enabled: true
+  topologyKey: topology.kubernetes.io/zone
+  maxSkew: 1
+  whenUnsatisfiable: ScheduleAnyway
+
+probes:
+  api:
+    liveness: { path: /healthz, initialDelaySeconds: 20, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 6 }
+    readiness: { path: /readyz, initialDelaySeconds: 10, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 3 }
+  worker:
+    aliveFile: /tmp/alelt_worker_alive
+    maxAgeSeconds: 120
+    periodSeconds: 15
+    failureThreshold: 4
+
+migrate:
+  enabled: true                   # ha: pre-install / pre-upgrade hook Job
+  backoffLimit: 5
+  activeDeadlineSeconds: 900
+
+# ---------------------------------------------------------------- networking
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # Long timeouts for the agent long-poll and batch uploads (examples, pick your controller):
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    # nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    # haproxy.org/timeout-server: "120s"
+    # traefik: use a ServersTransport with responseHeaderTimeout 120s
+  hosts:
+    - host: alelt.example.internal
+      paths: [{ path: /, pathType: Prefix }]
+  tls: []
+  # agent mTLS at the ingress (F-14 / DEP-02; ingress-nginx): the controller verifies the client certificate
+  # against `caSecret` and OVERWRITES X-SSL-Client-Fingerprint (needs allow-snippet-annotations on the controller).
+  agentMtls:
+    enabled: true                 # required when env.ALELT_AGENT_AUTH=mtls and ingress.enabled
+    caSecret: ""                  # "<namespace>/<secret>" with ca.crt (+ ca.crl) of the agent CA
+
+networkPolicy:
+  enabled: true                   # default-deny ingress except the sources below (DEP-18)
+  # namespaces/pods allowed to reach the api + metrics. Default: the ingress-nginx namespace and pods of this
+  # release's namespace (e.g. a Prometheus here). Add your monitoring namespace; never `namespaceSelector: {}`.
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+    - podSelector: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  automountToken: false           # the hub never calls the Kubernetes API (DEP-18); IRSA/workload identity tokens are
+                                  # projected separately by their webhooks
+  annotations: {}                 # e.g. workload identity for S3 / secret store
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile: { type: RuntimeDefault }
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }
+
+# ---------------------------------------------------------------- demo backing services (rehearsal only, NOT production)
+# Refused with env.ALELT_ENV=prod (credentials rendered from values, DEP-19): set env.ALELT_ENV=demo for a rehearsal.
+demo:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  postgres:
+    enabled: false
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    user: alelt
+    password: change-me-demo-only
+    database: alelt
+    storage: 10Gi
+  # bundled S3-compatible spool (key kept as `minio` for compatibility). SeaweedFS: the public minio/minio and
+  # minio/mc images are no longer pullable anonymously, and `:latest` is never used (DEP-05).
+  minio:
+    enabled: false
+    image: chrislusf/seaweedfs:3.85@sha256:49312939c00c01e5ee6afbd7d728b18027821d3764c35a797a72acd4fdf3296a
+    rootUser: aleltdemo
+    rootPassword: change-me-demo-only
+    bucket: alelt-spool
+    storage: 20Gi

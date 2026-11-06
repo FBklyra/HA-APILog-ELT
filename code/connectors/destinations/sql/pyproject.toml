@@ -1,0 +1,20 @@
+[project]
+name = "alelt-dst-sql"
+version = "0.1.0"
+description = "ALELT generic SQL destination (PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, Db2, SQLite, DuckDB)"
+authors = [{ name = "Freddy Beltran" }]
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.6", "pyyaml>=6"]
+
+[project.optional-dependencies]
+postgres = ["psycopg>=3.1"]          # LGPL-3.0, dynamic use (same as alelt_dst_postgres)
+mysql = ["PyMySQL>=1.1"]             # MIT  (also MariaDB, TiDB)
+sqlserver = ["python-tds>=1.15"]     # MIT
+oracle = ["oracledb>=2"]             # Apache-2.0 / UPL
+db2 = ["ibm_db>=3.2"]                # Apache-2.0 (remote targets; local targets use the installed Db2 CLI via ctypes)
+duckdb = ["duckdb>=1.1"]             # MIT
+test = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["alelt_dst_sql", "alelt_dst_sql.dialects"]

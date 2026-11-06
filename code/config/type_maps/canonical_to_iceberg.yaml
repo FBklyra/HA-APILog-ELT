@@ -1,0 +1,23 @@
+# Canonical type -> Apache Iceberg type (alelt_dst_iceberg, pyiceberg). Iceberg has no 16-bit int: SHORT -> int.
+engine: iceberg
+types:
+  BOOLEAN: boolean
+  SHORT: int
+  INT: int
+  LONG: long
+  DECIMAL: decimal({p},{s})
+  FLOAT: float
+  DOUBLE: double
+  LOCALDATE: date
+  LOCALTIME: time
+  LOCALDATETIME: timestamp
+  INSTANT: timestamptz
+  STRING: string
+  BINARY: binary
+  JSON: string
+  XML: string
+  UNKNOWN: null
+defaults:
+  DECIMAL_without_precision: decimal(38,0)
+limits:
+  DECIMAL_max_precision: 38

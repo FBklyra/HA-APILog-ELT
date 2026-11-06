@@ -1,0 +1,22 @@
+# Canonical type -> BigQuery (GoogleSQL) type (alelt_dst_bigquery).
+engine: bigquery
+types:
+  BOOLEAN: BOOL
+  SHORT: INT64
+  INT: INT64
+  LONG: INT64
+  DECIMAL: NUMERIC({p},{s})   # BIGNUMERIC used by the plugin when p - s > 29 or s > 9
+  FLOAT: FLOAT64
+  DOUBLE: FLOAT64
+  LOCALDATE: DATE
+  LOCALTIME: TIME
+  LOCALDATETIME: DATETIME
+  INSTANT: TIMESTAMP
+  STRING: STRING
+  BINARY: BYTES
+  JSON: JSON
+  XML: STRING
+  UNKNOWN: null
+defaults:
+  DECIMAL_without_precision: BIGNUMERIC
+  STRING_without_length: STRING

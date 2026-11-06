@@ -1,0 +1,46 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": { "DB2_HOME": "D:/IBM/SQLLIB" }
+    },
+    {
+      "name": "x64-release",
+      "displayName": "MSVC x64 Release (/W4 /WX /sdl /guard:cf)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "CMAKE_C_COMPILER": "cl" }
+    },
+    {
+      "name": "x64-debug",
+      "displayName": "MSVC x64 Debug",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CMAKE_C_COMPILER": "cl" }
+    },
+    {
+      "name": "fuzz-clang",
+      "displayName": "clang-cl x64 libFuzzer + ASan (parser fuzzing)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "clang-cl",
+        "ALELT_FUZZ": "ON",
+        "ALELT_BUILD_DB2_PLUGIN": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "x64-release", "configurePreset": "x64-release" },
+    { "name": "x64-debug", "configurePreset": "x64-debug" },
+    { "name": "fuzz-clang", "configurePreset": "fuzz-clang" }
+  ],
+  "testPresets": [
+    { "name": "x64-release", "configurePreset": "x64-release", "output": { "outputOnFailure": true } },
+    { "name": "x64-debug", "configurePreset": "x64-debug", "output": { "outputOnFailure": true } }
+  ]
+}

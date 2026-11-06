@@ -1,0 +1,24 @@
+# Canonical type -> Databricks SQL (Delta) type (alelt_dst_databricks).
+engine: databricks
+types:
+  BOOLEAN: BOOLEAN
+  SHORT: SMALLINT
+  INT: INT
+  LONG: BIGINT
+  DECIMAL: DECIMAL({p},{s})
+  FLOAT: FLOAT
+  DOUBLE: DOUBLE
+  LOCALDATE: DATE
+  LOCALTIME: STRING
+  LOCALDATETIME: TIMESTAMP_NTZ
+  INSTANT: TIMESTAMP
+  STRING: STRING
+  BINARY: BINARY
+  JSON: STRING
+  XML: STRING
+  UNKNOWN: null
+defaults:
+  DECIMAL_without_precision: DECIMAL(38,0)
+  STRING_without_length: STRING
+limits:
+  DECIMAL_max_precision: 38

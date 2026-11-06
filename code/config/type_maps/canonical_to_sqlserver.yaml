@@ -1,0 +1,30 @@
+# Canonical type -> SQL Server / Azure SQL / Fabric warehouse physical type (dialect sqlserver).
+engine: sqlserver
+types:
+  BOOLEAN: bit
+  SHORT: smallint
+  INT: int
+  LONG: bigint
+  DECIMAL: decimal({p},{s})
+  FLOAT: real
+  DOUBLE: float
+  LOCALDATE: date
+  LOCALTIME: time(7)
+  LOCALDATETIME: datetime2(7)
+  INSTANT: datetimeoffset(7)
+  STRING: nvarchar({n})
+  BINARY: varbinary({n})
+  JSON: nvarchar(max)
+  XML: nvarchar(max)            # xml type rejects some source documents; keep text
+  UNKNOWN: null
+defaults:
+  STRING_without_length: nvarchar(max)
+  STRING_over_max: nvarchar(max)
+  BINARY_without_length: varbinary(max)
+  BINARY_over_max: varbinary(max)
+  DECIMAL_without_precision: decimal(38,10)
+  DECIMAL_over_max: decimal(38,10)
+limits:
+  max_varchar: 4000
+  max_varbinary: 8000
+  max_decimal_precision: 38

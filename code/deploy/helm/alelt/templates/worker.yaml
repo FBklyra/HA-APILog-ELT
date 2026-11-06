@@ -1,0 +1,59 @@
+{{- if eq .Values.mode "ha" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "alelt.fullname" . }}-worker
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {{ include "alelt.rollingUpdate" . }}
+  selector:
+    matchLabels: {{- include "alelt.selector" (dict "root" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "alelt.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+      {{- with .Values.worker.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "alelt.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountToken }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- include "alelt.scheduling" (dict "root" . "component" "worker") | nindent 6 }}
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 120   # finish the current job; an unfinished job is re-queued (claim-once)
+      containers:
+        - name: worker
+          image: {{ include "alelt.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["worker"]
+          ports:
+            - { name: metrics, containerPort: {{ .Values.worker.metricsPort }} }
+          env:
+            - { name: ALELT_ROLE, value: worker }
+            - { name: ALELT_WORKER_METRICS_PORT, value: {{ .Values.worker.metricsPort | quote }} }
+            - { name: ALELT_WORKER_ALIVE_FILE, value: {{ .Values.probes.worker.aliveFile | quote }} }
+            {{- include "alelt.env" . | nindent 12 }}
+          envFrom: {{- include "alelt.envFrom" . | nindent 12 }}
+          {{- include "alelt.workerLiveness" . | nindent 10 }}
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: varlib, mountPath: /var/lib/alelt }
+      volumes:
+        {{- include "alelt.scratchVolumes" . | nindent 8 }}
+        - { name: varlib, emptyDir: {} }
+{{- end }}

@@ -1,0 +1,34 @@
+# HA example: 2 api + 2 worker replicas over nodes/zones, external Postgres HA, S3-compatible spool.
+#   kubectl create secret generic alelt-db --from-literal=ALELT_DB_URL='postgresql+psycopg://alelt:***@pg-ha.db.svc:5432/alelt'
+#   kubectl create secret generic alelt-s3 --from-literal=ALELT_S3_ACCESS_KEY_ID=*** --from-literal=ALELT_S3_SECRET_ACCESS_KEY=***
+#   kubectl create secret generic alelt-hub --from-literal=ALELT_DEST_URL='postgresql://...' --from-literal=ALELT_AGENT_TOKENS=***
+#   helm upgrade --install alelt deploy/helm/alelt -f deploy/helm/alelt/values-ha.yaml
+mode: ha
+image:
+  repository: registry.example.internal/alelt
+  tag: "0.1.0"
+externalDatabase:
+  existingSecret: alelt-db
+spool:
+  url: s3://alelt-spool/prod
+s3:
+  endpoint: https://minio.storage.example.internal:9000
+  region: us-east-1
+  existingSecret: alelt-s3
+secrets:
+  existingSecret: alelt-hub
+api:
+  replicas: 2
+worker:
+  replicas: 2
+antiAffinity: required
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+  hosts:
+    - host: alelt.example.internal
+      paths: [{ path: /, pathType: Prefix }]

@@ -1,0 +1,78 @@
+# ALELT edge agent (Linux) - log-based CDC capture next to the source database.
+# Installed by deploy/linux/install.sh to /etc/systemd/system/alelt.service.
+# Config: /etc/alelt/aleltagent.json (same keys as the Windows agent) + /etc/alelt/agent.env (token, passwords).
+# State (spool + state.json): /var/lib/alelt. Logs: journald only  ->  journalctl -u alelt -f
+[Unit]
+Description=ALELT edge agent (log-based CDC capture)
+Documentation=file:/opt/alelt/app/deploy/linux/README.md
+After=network-online.target
+Wants=network-online.target
+# give up after 5 failed starts in 10 minutes (operator must look); counter resets after the interval
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=alelt
+Group=alelt
+EnvironmentFile=-/etc/alelt/agent.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/alelt/app/edge-agent/linux:/opt/alelt/app/hub:/opt/alelt/app/connectors/sources/db2/devedge:/opt/alelt/app/connectors/sources/postgres:/opt/alelt/app/connectors/sources/mysql:/opt/alelt/app/connectors/sources/mariadb:/opt/alelt/app/connectors/sources/sqlserver:/opt/alelt/app/connectors/sources/oracle
+ExecStart=/opt/alelt/venv/bin/python -m aleltd --config /etc/alelt/aleltagent.json
+ExecReload=/bin/kill -HUP $MAINPID
+
+# --- lifecycle
+# SIGTERM -> graceful stop: flush in-flight batch (fsync), state.json (atomic), drain spool, release HA lease.
+# The agent's own deadline is shutdown.deadline_s (default 45 s) < TimeoutStopSec, so it always exits by itself.
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStartSec=120
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=10
+# 78 = configuration / safety-guard refusal (deny_hosts, PROD without allow_prod): never restart into it
+RestartPreventExitStatus=78
+# READY=1 after start-up, WATCHDOG=1 while the main loop makes progress, STOPPING=1 on stop
+WatchdogSec=120
+
+# --- directories
+StateDirectory=alelt
+StateDirectoryMode=0750
+ConfigurationDirectory=alelt
+ConfigurationDirectoryMode=0750
+UMask=0027
+
+# --- resource caps (Linux equivalent of the Windows Job Object; keep in line with aleltagent.json limits_max)
+MemoryHigh=768M
+MemoryMax=1G
+CPUQuota=100%
+TasksMax=64
+LimitNOFILE=4096
+
+# --- hardening (outbound network only, R4; no privileges)
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/alelt
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

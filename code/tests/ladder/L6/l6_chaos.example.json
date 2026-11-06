@@ -1,0 +1,45 @@
+{
+  "_comment": "Copy to l6_chaos.lab.json and adapt host names. Lab only: never production. No secrets here (R9).",
+  "background_workload": "powershell -File C:\\alelt-lab\\replay.ps1 -Multiplier 1 -Minutes 600",
+  "scenarios": {
+    "kill_agent": {
+      "inject": "powershell -Command Invoke-Command -ComputerName DB2LAB { taskkill /F /IM aleltagent.exe }",
+      "restore": null,
+      "hold_s": 60,
+      "recover_within_s": 300
+    },
+    "kill_hub": {
+      "inject": "ssh aleltadmin@hub-lab docker compose -f /opt/alelt/docker-compose.yml kill hub-api worker",
+      "restore": "ssh aleltadmin@hub-lab docker compose -f /opt/alelt/docker-compose.yml up -d",
+      "hold_s": 300,
+      "recover_within_s": 900,
+      "expect_during": {"agent_state": "HUB_DOWN"}
+    },
+    "destination_down_1h": {
+      "inject": "ssh aleltadmin@hub-lab sudo /opt/alelt/lab/block-destination.sh on",
+      "restore": "ssh aleltadmin@hub-lab sudo /opt/alelt/lab/block-destination.sh off",
+      "hold_s": 3600,
+      "recover_within_s": 3600
+    },
+    "spool_full": {
+      "inject": "ssh aleltadmin@hub-lab sudo /opt/alelt/lab/block-agent-ingress.sh on",
+      "restore": "ssh aleltadmin@hub-lab sudo /opt/alelt/lab/block-agent-ingress.sh off",
+      "hold_s": 1800,
+      "recover_within_s": 1800,
+      "expect_during": {"agent_state": "OFFLINE"}
+    },
+    "network_flap": {
+      "inject": "ssh aleltadmin@hub-lab sudo /opt/alelt/lab/flap-agent-ingress.sh 30 30 10",
+      "restore": null,
+      "hold_s": 600,
+      "recover_within_s": 600
+    },
+    "dr_rebuild": {
+      "inject": "powershell -File C:\\alelt-lab\\destroy-hub-vm.ps1",
+      "restore": "powershell -File C:\\alelt-lab\\rebuild-hub-vm.ps1",
+      "hold_s": 60,
+      "recover_within_s": 7200,
+      "expect_during": {"agent_state": "HUB_DOWN"}
+    }
+  }
+}

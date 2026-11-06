@@ -1,0 +1,27 @@
+# Canonical type -> Microsoft Fabric Warehouse / Synapse T-SQL type (alelt_dst_fabric). Fabric Warehouse has no
+# nvarchar/datetimeoffset: strings are varchar (UTF-8 collation), INSTANT is stored as UTC datetime2(6).
+engine: fabric
+types:
+  BOOLEAN: bit
+  SHORT: smallint
+  INT: int
+  LONG: bigint
+  DECIMAL: decimal({p},{s})
+  FLOAT: real
+  DOUBLE: float
+  LOCALDATE: date
+  LOCALTIME: time(6)
+  LOCALDATETIME: datetime2(6)
+  INSTANT: datetime2(6)
+  STRING: varchar({n})
+  BINARY: varbinary(max)
+  JSON: varchar(max)
+  XML: varchar(max)
+  UNKNOWN: null
+defaults:
+  STRING_without_length: varchar(max)
+  STRING_over_max: varchar(max)
+  DECIMAL_without_precision: decimal(38,0)
+limits:
+  STRING_max_length: 8000
+  DECIMAL_max_precision: 38

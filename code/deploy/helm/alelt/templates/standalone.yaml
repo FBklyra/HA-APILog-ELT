@@ -1,0 +1,68 @@
+{{- if eq .Values.mode "standalone" }}
+{{- if not .Values.standalone.persistence.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "alelt.fullname" . }}-data
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep          # spool + SQLite survive `helm uninstall`
+spec:
+  accessModes: {{- toYaml .Values.standalone.persistence.accessModes | nindent 4 }}
+  {{- with .Values.standalone.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests: { storage: {{ .Values.standalone.persistence.size }} }
+---
+{{- end }}
+# Standalone: one pod running `alelt all` (migrate, then api + worker). Recreate strategy: never two writers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "alelt.fullname" . }}
+  labels: {{- include "alelt.labels" . | nindent 4 }}
+    app.kubernetes.io/component: all
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: {{- include "alelt.selector" (dict "root" . "component" "all") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "alelt.labels" . | nindent 8 }}
+        app.kubernetes.io/component: all
+    spec:
+      serviceAccountName: {{ include "alelt.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountToken }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: alelt
+          image: {{ include "alelt.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["all"]
+          ports:
+            - { name: http, containerPort: {{ .Values.api.port }} }
+            - { name: metrics, containerPort: {{ .Values.worker.metricsPort }} }
+          env:
+            - { name: ALELT_ROLE, value: all }
+            - { name: ALELT_PORT, value: {{ .Values.api.port | quote }} }
+            - { name: ALELT_WORKER_METRICS_PORT, value: {{ .Values.worker.metricsPort | quote }} }
+            {{- include "alelt.env" . | nindent 12 }}
+          envFrom: {{- include "alelt.envFrom" . | nindent 12 }}
+          {{- include "alelt.apiProbes" . | nindent 10 }}
+          resources: {{- toYaml .Values.standalone.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: data, mountPath: /var/lib/alelt }
+      volumes:
+        {{- include "alelt.scratchVolumes" . | nindent 8 }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-data" (include "alelt.fullname" .)) .Values.standalone.persistence.existingClaim }}
+{{- end }}

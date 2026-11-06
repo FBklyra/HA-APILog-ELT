@@ -1,0 +1,26 @@
+ALELT {{ .Chart.AppVersion }} installed in mode: {{ .Values.mode }}
+{{- if eq .Values.mode "ha" }}
+  api replicas: {{ .Values.api.replicas }} · worker replicas: {{ .Values.worker.replicas }} · spool: {{ include "alelt.spoolUrl" . }}
+{{- if or (lt (int .Values.api.replicas) 2) (lt (int .Values.worker.replicas) 2) }}
+  WARNING: fewer than 2 replicas for api or worker - this is not highly available.
+{{- end }}
+{{- if or .Values.demo.postgres.enabled .Values.demo.minio.enabled }}
+  WARNING: demo Postgres/S3 are single-instance rehearsal services, not HA and not for production.
+{{- end }}
+{{- else }}
+  single pod (`alelt all`), spool on PVC {{ default (printf "%s-data" (include "alelt.fullname" .)) .Values.standalone.persistence.existingClaim }}
+{{- end }}
+{{- if or .Values.secrets.create .Values.demo.postgres.enabled .Values.demo.minio.enabled (contains "@" (toString .Values.externalDatabase.url)) }}
+  WARNING: credentials were rendered from chart values; they stay readable in `helm get values` and the release
+  history (DEP-19). Production: externalDatabase.existingSecret / s3.existingSecret / secrets.existingSecret.
+{{- end }}
+
+Console / API:
+  kubectl port-forward svc/{{ include "alelt.fullname" . }} 8080:{{ .Values.service.port }}   ->  http://localhost:8080
+{{- if .Values.ingress.enabled }}
+  or https://{{ (index .Values.ingress.hosts 0).host }}
+{{- end }}
+
+Check topology:     kubectl exec deploy/{{ include "alelt.fullname" . }}{{ if eq .Values.mode "ha" }}-api{{ end }} -- alelt topology status
+Switch modes:       alelt topology plan --to {{ ternary "standalone" "ha" (eq .Values.mode "ha") }}  (guide: deploy/HA.md)
+Agents connect to:  the Service / Ingress above (outbound only from the source host).
